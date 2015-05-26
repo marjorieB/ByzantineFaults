@@ -1,0 +1,100 @@
+#include <msg/msg.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAILBOX_SIZE 80
+#define BUFFER_SIZE 80
+
+
+int random_allocation (int min, int max) {
+	return rand() % (max - min) + min;
+}
+
+
+int first_primary (int argc, char * argv[]) {
+	int i;
+
+	int number_primary = atoi(argv[1]);
+	int number_tasks = atoi(argv[2]);
+	double task_computation_size = atof(argv[3]);
+	double task_communication_size = atof(argv[4]);
+	char mailbox[MAILBOX_SIZE];
+	char buffer[BUFFER_SIZE];
+	msg_task_t task;
+	
+
+	srand(time(NULL));
+	
+	for (i = 0; i < number_tasks; i++) {
+		sprintf(buffer, "Task_%d", i);
+		task = MSG_task_create(buffer, task_computation_size, task_communication_size, NULL);
+		sprintf(mailbox, "primary-%d", random_allocation(0, number_primary));
+		MSG_task_send(task, mailbox);
+	}
+
+	for (i = 0; i < number_primary; i++) {
+		sprintf(mailbox, "primary-%d", i);
+		MSG_task_send(MSG_task_create("finalize", 0, 0, 0), mailbox);
+	}
+
+	return 0;
+}
+
+
+int primary (int argc, char * argv[]) {
+	int id = atoi(argv[1]);
+	int number_slaves_handled = atoi(argv[2]);
+	int number_slaves_requested = atoi(argv[3]);
+	int error_code;
+	msg_task_t task;
+	char my_mailbox[MAILBOX_SIZE];
+	char mailbox[MAILBOX_SIZE];
+	int end_primary = 0;
+	int i;
+	int nb_requests_received = 0;
+	int nb_answers_received = 0;
+
+	sprintf(my_mailbox, "primary-%d", id);
+
+	while (end_primary == 0) {
+		error_code = MSG_task_receive(&task, my_mailbox);
+		//xbt_assert(error_code == MSG_OK, "MSG_task_get failed");
+	
+		if (!strcmp(MSG_task_get_name(task), "finalize")) {
+			MSG_task_destroy(task);
+			break;
+		}
+				
+		nb_requests_received++;
+		for (i = 0; i < number_slaves_requested; i++) {
+			
+		}		
+
+	}
+
+	return 0;
+}	
+
+
+
+int slave (int argc, char * argv[]) {
+
+	return 0;
+}
+
+
+int main (int argc, char * argv[]) {
+	
+	MSG_init(&argc, argv);
+
+	MSG_function_register("first_primary", &first_primary);
+	MSG_function_register("primary", &primary);
+	MSG_function_register("slave", &slave);
+
+	MSG_create_environment("platform_essai_random.xml");
+	MSG_launch_application("deployment_essai_random.xml");
+
+	MSG_main();
+
+	return 0;
+}

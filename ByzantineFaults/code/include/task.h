@@ -1,0 +1,10 @@
+#ifndef _TASK_H
+#define _TASK_H
+
+#define MAILBOX_SIZE 80
+#define TASK_NAME_SIZE 256
+#define TASK_COMPUTE_DURATION 50000000
+#define MESSAGE_SIZE 1000000
+
+
+#endif

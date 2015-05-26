@@ -1,0 +1,104 @@
+<?xml version='1.0'?>
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid.dtd">
+<platform version="3">
+
+	<AS id="essai_random" routing="Full">
+		<host id="host1" power="1E8"/>
+		<host id="host2" power="1E8"/>
+		<host id="host3" power="1E8"/>
+		<host id="host4" power="1E8"/>
+		<host id="host5" power="1E8"/>
+		<host id="host6" power="1E8"/>
+		<host id="host7" power="1E8"/>
+		<host id="host8" power="1E8"/>
+		<host id="host9" power="1E8"/>
+		<host id="host10" power="1E8"/>
+		<host id="host11" power="1E8"/>
+		<host id="host12" power="1E8"/>
+		<host id="host13" power="1E8"/>
+		<host id="host14" power="1E8"/>
+		<host id="host15" power="1E8"/>
+		<host id="host16" power="1E8"/>
+		<host id="host17" power="1E8"/>
+		<host id="host18" power="1E8"/>
+		<host id="host19" power="1E8"/>
+
+		<link id="link1" bandwith="1E6" latency="1E-2"/>
+		<link id="link2" bandwith="1E6" latency="1E-2"/>
+		<link id="link3" bandwith="1E6" latency="1E-2"/>
+		<link id="link4" bandwith="1E6" latency="1E-2"/>
+		<link id="link5" bandwith="1E6" latency="1E-2"/>
+		<link id="link6" bandwith="1E6" latency="1E-2"/>
+		<link id="link7" bandwith="1E6" latency="1E-2"/>
+		<link id="link8" bandwith="1E6" latency="1E-2"/>
+		<link id="link9" bandwith="1E6" latency="1E-2"/>
+		<link id="link10" bandwith="1E6" latency="1E-2"/>
+		<link id="link11" bandwith="1E6" latency="1E-2"/>
+		<link id="link12" bandwith="1E6" latency="1E-2"/>
+		<link id="link13" bandwith="1E6" latency="1E-2"/>
+		<link id="link14" bandwith="1E6" latency="1E-2"/>
+		<link id="link15" bandwith="1E6" latency="1E-2"/>
+		<link id="link16" bandwith="1E6" latency="1E-2"/>
+		<link id="link17" bandwith="1E6" latency="1E-2"/>
+		<link id="link18" bandwith="1E6" latency="1E-2"/>
+
+		<route src="host1" dst="host2">
+			<link_ctn id="link1"/>
+		</route>
+		<route src="host1" dst="host3">
+			<link_ctn id="link2"/>
+		</route>
+		<route src="host1" dst="host4">
+			<link_ctn id="link3"/>
+		</route>
+
+		<route src="host2" dst="host5">
+			<link_ctn id="link4"/>
+		</route>
+		<route src="host2" dst="host6">
+			<link_ctn id="link5"/>
+		</route>
+		<route src="host2" dst="host7">
+			<link_ctn id="link6"/>
+		</route>
+		<route src="host2" dst="host8">
+			<link_ctn id="link7"/>
+		</route>
+		<route src="host2" dst="host9">
+			<link_ctn id="link8"/>
+		</route>
+
+		<route src="host3" dst="host10">
+			<link_ctn id="link9"/>
+		</route>	
+		<route src="host3" dst="host11">
+			<link_ctn id="link10"/>
+		</route>
+		<route src="host3" dst="host12">
+			<link_ctn id="link11"/>
+		</route>
+		<route src="host3" dst="host13">
+			<link_ctn id="link12"/>
+		</route>
+		<route src="host3" dst="host14">
+			<link_ctn id="link13"/>
+		</route>
+
+		<route src="host4" dst="host15">
+			<link_ctn id="link14"/>
+		</route>
+		<route src="host4" dst="host16">
+			<link_ctn id="link15"/>
+		</route>
+		<route src="host4" dst="host17">
+			<link_ctn id="link16"/>
+		</route>
+		<route src="host4" dst="host18">
+			<link_ctn id="link17"/>
+		</route>
+		<route src="host4" dst="host19">
+			<link_ctn id="link18"/>
+		</route>
+	
+	</AS>
+</platform>

@@ -1,0 +1,5 @@
+
+
+int slave (int argc, char * argv[]) {
+
+}
