@@ -1,9 +1,11 @@
 #ifndef _CLIENT_H
 #define _CLIENT_H
 
-void send_task(int i, char * mailbox);
+#define NB_REQUESTS 40
 
-void receive_answer(void);
+void send_task(int i, char * mailbox, char * myMailbox);
+
+void receive_answer(char * myMailbox);
 
 void send_finalize(char * mailbox);
 

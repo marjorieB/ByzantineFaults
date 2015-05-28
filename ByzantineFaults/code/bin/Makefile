@@ -162,6 +162,30 @@ src/primary.c.s:
 	$(MAKE) -f CMakeFiles/my_boinc.dir/build.make CMakeFiles/my_boinc.dir/src/primary.c.s
 .PHONY : src/primary.c.s
 
+src/reputation_strategy.o: src/reputation_strategy.c.o
+.PHONY : src/reputation_strategy.o
+
+# target to build an object file
+src/reputation_strategy.c.o:
+	$(MAKE) -f CMakeFiles/my_boinc.dir/build.make CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o
+.PHONY : src/reputation_strategy.c.o
+
+src/reputation_strategy.i: src/reputation_strategy.c.i
+.PHONY : src/reputation_strategy.i
+
+# target to preprocess a source file
+src/reputation_strategy.c.i:
+	$(MAKE) -f CMakeFiles/my_boinc.dir/build.make CMakeFiles/my_boinc.dir/src/reputation_strategy.c.i
+.PHONY : src/reputation_strategy.c.i
+
+src/reputation_strategy.s: src/reputation_strategy.c.s
+.PHONY : src/reputation_strategy.s
+
+# target to generate assembly for a file
+src/reputation_strategy.c.s:
+	$(MAKE) -f CMakeFiles/my_boinc.dir/build.make CMakeFiles/my_boinc.dir/src/reputation_strategy.c.s
+.PHONY : src/reputation_strategy.c.s
+
 src/sonnek_simulator.o: src/sonnek_simulator.c.o
 .PHONY : src/sonnek_simulator.o
 
@@ -225,6 +249,9 @@ help:
 	@echo "... src/primary.o"
 	@echo "... src/primary.i"
 	@echo "... src/primary.s"
+	@echo "... src/reputation_strategy.o"
+	@echo "... src/reputation_strategy.i"
+	@echo "... src/reputation_strategy.s"
 	@echo "... src/sonnek_simulator.o"
 	@echo "... src/sonnek_simulator.i"
 	@echo "... src/sonnek_simulator.s"

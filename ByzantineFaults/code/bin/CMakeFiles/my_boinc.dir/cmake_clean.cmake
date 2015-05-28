@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o"
+  "CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o"
   "CMakeFiles/my_boinc.dir/src/primary.c.o"
   "CMakeFiles/my_boinc.dir/src/worker.c.o"
   "CMakeFiles/my_boinc.dir/src/client.c.o"

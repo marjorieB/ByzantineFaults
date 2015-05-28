@@ -6,6 +6,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 set(CMAKE_DEPENDS_CHECK_C
   "/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/client.c" "/home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles/my_boinc.dir/src/client.c.o"
   "/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/primary.c" "/home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles/my_boinc.dir/src/primary.c.o"
+  "/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/reputation_strategy.c" "/home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o"
   "/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/sonnek_simulator.c" "/home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o"
   "/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/worker.c" "/home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles/my_boinc.dir/src/worker.c.o"
   )

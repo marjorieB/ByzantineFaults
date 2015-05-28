@@ -1,0 +1,6 @@
+#ifndef _REPUTATION_STRATEGY
+#define _REPUTATION_STRATEGY
+
+void updateReputation_Sonnek (struct p_worker * worker);
+
+#endif

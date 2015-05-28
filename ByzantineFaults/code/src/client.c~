@@ -1,58 +1,64 @@
 #include "msg/msg.h"
 #include "task.h"
 #include "client.h"
+#include <time.h>
 
 // this function permit to send to the node "mailbox" the task number i
-void send_task(int i, char * mailbox) {
+void send_task(int i, char * mailbox, char * myMailbox) {
 	msg_task_t task = NULL;
 	char task_name[TASK_NAME_SIZE];
 
+	printf("client: I send a request to %s\n", mailbox);
+
 	sprintf(task_name, "task-%d", i);
-	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, MESSAGE_SIZE, NULL);
+	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, &myMailbox);
 	MSG_task_send(task, mailbox);
 }
 
 
-void receive_answer() {
+void receive_answer(char * myMailbox) {
 	msg_task_t answer = NULL;
 	_XBT_GNUC_UNUSED int res;
 
-	res = MSG_task_receive(&(answer), MSG_process_get_name(MSG_process_self()));
+	res = MSG_task_receive(&(answer), myMailbox);
    xbt_assert(res == MSG_OK, "MSG_task_receive failed on client");
 }
 
 
 void send_finalize(char * mailbox) {
-	msg_task_t finalize = MSG_task_create("finalize", 0, 0, 0);
+	msg_task_t finalize = MSG_task_create("finalize", 0, 0, NULL);
    MSG_task_send(finalize, mailbox);	
 }
 
 
 int client (int argc, char * argv[]) {
 	int i;
+	unsigned long int id;
 	int nb_requests;
-	char mailbox[MAILBOX_SIZE];
+	char myMailbox[MAILBOX_SIZE];
+	char primary[MAILBOX_SIZE];
 
-	if (argc != 1) {
+	if (argc != 3) {
 		exit(1);
 	}
 
-	printf("ma boite aux lettres: %s\n", MSG_host_get_name(MSG_process_self()));
+	nb_requests = NB_REQUESTS;
 
-	// clients know the number of requests they must send
-	nb_requests = atoi(argv[1]);
-	sprintf(mailbox, "primary-1");
+	id = atoi(argv[1]);
+	sprintf(myMailbox, "client-%ld", id);
+	// the name of the primary is known by the client
+	strcpy(primary, argv[2]);
 
 	for (i = 1; i <= nb_requests; i++) {
 		//send a request to the primary
-		send_task(i, mailbox);		
+		send_task(i, primary, myMailbox);		
 
 		// wait for the result of the request before sending an other one
-		receive_answer();
+		receive_answer(myMailbox);
 	}
 	
 	// signal to the primary that there is no more tasks to treat for that client
-	send_finalize(mailbox);
+	send_finalize(primary);
 
 	return 0;
 }

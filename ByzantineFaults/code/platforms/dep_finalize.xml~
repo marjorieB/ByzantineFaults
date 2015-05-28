@@ -1,10 +1,26 @@
+<?xml version='1.0'?>
+ <!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid.dtd">
+
 <platform version="3">
 	<process host="client" function="client">
-		<argument value="0"/>
+		<argument value="1"/> <!-- id of the client -->
+		<argument value="primary-1"/> <!-- name of the primary -->
 	</process>
 
 	<process host="primary" function="primary">
-		<argument value="1"/>
-		<argument value="0"/>
+		<argument value="1"/> <!-- id of the primary -->
+		<argument value="1"/> <!-- number of clients -->
+	</process>
+
+	<process host="worker" function="worker">
+		<argument value="1"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="100"/> <!-- value of the reputation -->
+	</process>
+
+	<process host="worker1" function="worker">
+		<argument value="2"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="100"/> <!-- value of the reputation -->
 	</process>
 </platform>

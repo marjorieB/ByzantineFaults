@@ -9,10 +9,18 @@
 ../include/client.h
 
 ../include/primary.h
+task.h
+../include/task.h
+
+../include/reputation_strategy.h
+primary.h
+../include/primary.h
 
 ../include/task.h
 
 ../include/worker.h
+task.h
+../include/task.h
 
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/client.c
 msg/msg.h
@@ -21,6 +29,8 @@ task.h
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/task.h
 client.h
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/client.h
+time.h
+-
 
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/primary.c
 msg/msg.h
@@ -29,8 +39,16 @@ task.h
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/task.h
 primary.h
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/primary.h
+reputation_strategy.h
+/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/reputation_strategy.h
 string.h
 -
+
+/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/reputation_strategy.c
+msg/msg.h
+/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/msg/msg.h
+reputation_strategy.h
+/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/reputation_strategy.h
 
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/sonnek_simulator.c
 msg/msg.h
@@ -47,6 +65,10 @@ msg/msg.h
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/msg/msg.h
 worker.h
 /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/worker.h
+task.h
+/home/marjo/stage/logiciel/Simgrid_et_co/projet/src/task.h
+time.h
+-
 
 /home/marjo/stage/logiciel/Simgrid_et_co/simgrid/include/instr/instr.h
 simgrid_config.h

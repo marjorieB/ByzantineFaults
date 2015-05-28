@@ -72,9 +72,32 @@ CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o.provides: CMakeFiles/my_boinc.d
 
 CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o.provides.build: CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o
 
+CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o: CMakeFiles/my_boinc.dir/flags.make
+CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o: ../src/reputation_strategy.c
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles $(CMAKE_PROGRESS_2)
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building C object CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o"
+	/usr/bin/cc  $(C_DEFINES) $(C_FLAGS) -o CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o   -c /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/reputation_strategy.c
+
+CMakeFiles/my_boinc.dir/src/reputation_strategy.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing C source to CMakeFiles/my_boinc.dir/src/reputation_strategy.c.i"
+	/usr/bin/cc  $(C_DEFINES) $(C_FLAGS) -E /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/reputation_strategy.c > CMakeFiles/my_boinc.dir/src/reputation_strategy.c.i
+
+CMakeFiles/my_boinc.dir/src/reputation_strategy.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling C source to assembly CMakeFiles/my_boinc.dir/src/reputation_strategy.c.s"
+	/usr/bin/cc  $(C_DEFINES) $(C_FLAGS) -S /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/reputation_strategy.c -o CMakeFiles/my_boinc.dir/src/reputation_strategy.c.s
+
+CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.requires:
+.PHONY : CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.requires
+
+CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.provides: CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.requires
+	$(MAKE) -f CMakeFiles/my_boinc.dir/build.make CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.provides.build
+.PHONY : CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.provides
+
+CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.provides.build: CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o
+
 CMakeFiles/my_boinc.dir/src/primary.c.o: CMakeFiles/my_boinc.dir/flags.make
 CMakeFiles/my_boinc.dir/src/primary.c.o: ../src/primary.c
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles $(CMAKE_PROGRESS_2)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles $(CMAKE_PROGRESS_3)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building C object CMakeFiles/my_boinc.dir/src/primary.c.o"
 	/usr/bin/cc  $(C_DEFINES) $(C_FLAGS) -o CMakeFiles/my_boinc.dir/src/primary.c.o   -c /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/primary.c
 
@@ -97,7 +120,7 @@ CMakeFiles/my_boinc.dir/src/primary.c.o.provides.build: CMakeFiles/my_boinc.dir/
 
 CMakeFiles/my_boinc.dir/src/worker.c.o: CMakeFiles/my_boinc.dir/flags.make
 CMakeFiles/my_boinc.dir/src/worker.c.o: ../src/worker.c
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles $(CMAKE_PROGRESS_3)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles $(CMAKE_PROGRESS_4)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building C object CMakeFiles/my_boinc.dir/src/worker.c.o"
 	/usr/bin/cc  $(C_DEFINES) $(C_FLAGS) -o CMakeFiles/my_boinc.dir/src/worker.c.o   -c /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/worker.c
 
@@ -120,7 +143,7 @@ CMakeFiles/my_boinc.dir/src/worker.c.o.provides.build: CMakeFiles/my_boinc.dir/s
 
 CMakeFiles/my_boinc.dir/src/client.c.o: CMakeFiles/my_boinc.dir/flags.make
 CMakeFiles/my_boinc.dir/src/client.c.o: ../src/client.c
-	$(CMAKE_COMMAND) -E cmake_progress_report /home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles $(CMAKE_PROGRESS_4)
+	$(CMAKE_COMMAND) -E cmake_progress_report /home/marjo/stage/logiciel/Simgrid_et_co/projet/bin/CMakeFiles $(CMAKE_PROGRESS_5)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Building C object CMakeFiles/my_boinc.dir/src/client.c.o"
 	/usr/bin/cc  $(C_DEFINES) $(C_FLAGS) -o CMakeFiles/my_boinc.dir/src/client.c.o   -c /home/marjo/stage/logiciel/Simgrid_et_co/projet/src/client.c
 
@@ -144,6 +167,7 @@ CMakeFiles/my_boinc.dir/src/client.c.o.provides.build: CMakeFiles/my_boinc.dir/s
 # Object files for target my_boinc
 my_boinc_OBJECTS = \
 "CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o" \
+"CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o" \
 "CMakeFiles/my_boinc.dir/src/primary.c.o" \
 "CMakeFiles/my_boinc.dir/src/worker.c.o" \
 "CMakeFiles/my_boinc.dir/src/client.c.o"
@@ -152,6 +176,7 @@ my_boinc_OBJECTS = \
 my_boinc_EXTERNAL_OBJECTS =
 
 my_boinc: CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o
+my_boinc: CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o
 my_boinc: CMakeFiles/my_boinc.dir/src/primary.c.o
 my_boinc: CMakeFiles/my_boinc.dir/src/worker.c.o
 my_boinc: CMakeFiles/my_boinc.dir/src/client.c.o
@@ -165,6 +190,7 @@ CMakeFiles/my_boinc.dir/build: my_boinc
 .PHONY : CMakeFiles/my_boinc.dir/build
 
 CMakeFiles/my_boinc.dir/requires: CMakeFiles/my_boinc.dir/src/sonnek_simulator.c.o.requires
+CMakeFiles/my_boinc.dir/requires: CMakeFiles/my_boinc.dir/src/reputation_strategy.c.o.requires
 CMakeFiles/my_boinc.dir/requires: CMakeFiles/my_boinc.dir/src/primary.c.o.requires
 CMakeFiles/my_boinc.dir/requires: CMakeFiles/my_boinc.dir/src/worker.c.o.requires
 CMakeFiles/my_boinc.dir/requires: CMakeFiles/my_boinc.dir/src/client.c.o.requires
