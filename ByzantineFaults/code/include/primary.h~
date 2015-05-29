@@ -2,20 +2,38 @@
 #define _PRIMARY_H
 
 #include "task.h"
+#include "worker.h"
 
-#define MIN_WORKERS_GROUP 5
+
+// structure of information about tasks (already distributed on workers) processing that a primary keep in memory
+struct p_task {
+	char client[MAILBOX_SIZE]; 
+	char task_name[TASK_NAME_SIZE];
+	xbt_dynar_t w_answers; // list of struct p_answer_worker
+	int duration;
+	int size;
+	int final_answer;
+	int nb_forwarded;
+	int nb_answers_received;
+	int nb_false_answers;
+	int nb_correct_answers;
+};
 
 struct p_worker {
 	char mailbox[MAILBOX_SIZE];
-	unsigned char answer; // the answer is symbolised by a boolean. If the answer is correct the boolean is true, otherwise it is false
 	unsigned char reputation; // correspond to the reputation of the worker seen by the primary
 	unsigned int totR; // correspond to the number of requests submitted to the worker
 	unsigned int totC; // correspond to the number of assumed correct answers that the worker give
 };
 
-struct group {
-	xbt_dynar_t workers;
+struct p_answer_worker {
+	char worker_name[MAILBOX_SIZE];
+	char bool_answer;
 };
+
+/*struct group {
+	xbt_dynar_t workers;
+};*/
 
 struct pimary {
 	xbt_dynar_t active_workers;
@@ -24,21 +42,43 @@ struct pimary {
 
 xbt_dynar_t workers;
 
+// list of tasks the primary hasn't distributed yet 
 xbt_fifo_t tasks;
 
+xbt_fifo_t processing_tasks;
+
+xbt_fifo_t active_groups;
+
+xbt_fifo_t inactive_groups;
 
 
-void dynar_print(void);
+void tasks_print(void);
 
-int dynar_search(const char * name) ;
+void workers_print(void);
+
+void groups_print(xbt_fifo_t * f); 
+
+int dynar_search(const char * name);
 
 void send_finalize_to_workers(void);
 
-void add_new_worker(const char * name);
+xbt_fifo_item_t fifo_supress_item_head(xbt_fifo_t l);
+
+void * fifo_supress_head(xbt_fifo_t l);
+
+struct p_worker * give_worker_dynar(xbt_dynar_t * d, char * name);
+
+struct p_worker * give_worker_fifo(xbt_fifo_t * f, char * name);
+
+void updateReputation(struct p_task * t);
+
+void add_new_worker(const char * name, char * myMailbox);
 
 void put_task_fifo(msg_task_t task);
 
-void treat_answer(void);
+void treat_tasks(void);
+
+void treat_answer(msg_task_t);
 
 int primary (int argc, char * argv[]);
 

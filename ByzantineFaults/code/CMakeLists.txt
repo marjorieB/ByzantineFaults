@@ -13,6 +13,7 @@ INCLUDE_DIRECTORIES(${SIMGRID_INCLUDE} ${MY_INCLUDE})
 SET(MY_BOINC_SRC
 	src/sonnek_simulator.c
 	src/reputation_strategy.c
+	src/group_formation_strategy.c
 	src/primary.c
 	src/worker.c
 	src/client.c

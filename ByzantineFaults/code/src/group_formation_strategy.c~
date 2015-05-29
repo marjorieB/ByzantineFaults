@@ -18,9 +18,9 @@ void formGroup_fixed_fit() {
 
 		for(i = 0; i < NB_FIXED_GROUP; i++) {
 			nb_rand = rand() % (xbt_dynar_length(workers));
-			//printf("value nb_rand=%d\n", nb_rand);
+			printf("value nb_rand=%d\n", nb_rand);
 			xbt_dynar_remove_at(workers, nb_rand, (void *)toAdd);
-			//printf("remove toAdd.name= %s\ntoAdd.reputation=%d\n", toAdd->mailbox, toAdd->reputation);
+			printf("remove toAdd.name= %s\ntoAdd.reputation=%d\n", toAdd->mailbox, toAdd->reputation);
 			xbt_dynar_push(*w, toAdd);
 		}
 		xbt_fifo_push(inactive_groups, w);

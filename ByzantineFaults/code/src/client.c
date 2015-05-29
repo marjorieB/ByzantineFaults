@@ -8,7 +8,7 @@ void send_task(int i, char * mailbox, char * myMailbox) {
 	msg_task_t task = NULL;
 	char task_name[TASK_NAME_SIZE];
 
-	printf("client: I send a request to %s\n", mailbox);
+	printf("%s: I send a request to %s\n", myMailbox, mailbox);
 
 	sprintf(task_name, "task-%d", i);
 	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, myMailbox);
@@ -22,6 +22,7 @@ void receive_answer(char * myMailbox) {
 
 	res = MSG_task_receive(&(answer), myMailbox);
    xbt_assert(res == MSG_OK, "MSG_task_receive failed on client");
+	MSG_task_destroy(answer);
 }
 
 

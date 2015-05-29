@@ -21,26 +21,29 @@ void receive_ack(struct worker * worker, char * myMailbox) {
 	strcpy(worker->primary, (char *)MSG_task_get_data(ack));
 
 	MSG_task_destroy(ack);
-	printf("%s: I receive my acknoledgment\n", myMailbox);
+	printf("%s: I receive my acknowledgment\n", myMailbox);
 }
 
 
-void treat_task(struct worker * me, msg_task_t task, struct task * data_task, char * myMailbox) {
+void treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) {
 	msg_task_t answer;	
-	struct task data = *data_task;
+	struct w_task data_toSend;
 		
 	MSG_task_execute(task);
-	MSG_task_destroy(task);
+	strcpy(data_toSend.client, MSG_task_get_data(task));
+	strcpy(data_toSend.worker_name, myMailbox);
+	strcpy(data_toSend.task_name, MSG_task_get_name(task));
+
+	printf("%s: received task: name=%s client=%s\n", myMailbox, MSG_task_get_name(task), (char *)MSG_task_get_data(task));
+
 	if ((rand() % 100) <= me->reputation) {
-		data.bool_answer = 1;
+		data_toSend.bool_answer = GOOD_ANSWER;
 	}
 	else {
-		data.bool_answer = -1;
+		data_toSend.bool_answer = BAD_ANSWER;
 	} 	
-
-	strcpy(data.worker, myMailbox);
 	
-	answer = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, &data);
+	answer = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, &data_toSend);
 	MSG_task_send(answer, me->primary);
 }
 
@@ -69,22 +72,28 @@ int worker (int argc, char * argv[]) {
 
 	while (1) {
 		_XBT_GNUC_UNUSED int res;
-		msg_task_t task;
+		msg_task_t task = NULL;
 
 		res = MSG_task_receive(&(task), myMailbox);
 		xbt_assert(res == MSG_OK, "MSG_task_receive failed on worker");
 
 		if (!strcmp(MSG_task_get_name(task), "finalize")) {
 			MSG_task_destroy(task);
+			task = NULL;
 			break;
 		}
 		else if (!strncmp(MSG_task_get_name(task), "task", strlen("task") * sizeof(char))) {
 			// if the availability_file still don't work, do a random to know if the worker will answer and put a percentage of availability in the xml file to describe the node
-			treat_task(me, task, (struct task *) MSG_task_get_data(task), myMailbox);
+			printf("%s: receive a task\n", myMailbox);
+			treat_task_worker(me, task, myMailbox);
+			MSG_task_destroy(task);
+			task = NULL;
 		}	
 		else {
 			// message incorrect
 			printf("%s message incorrect\n", myMailbox);
+			MSG_task_destroy(task);
+			task = NULL;
 		}
 	}	
 

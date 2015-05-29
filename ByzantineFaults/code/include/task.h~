@@ -10,12 +10,4 @@
 #define ACK_COMPUTE_DURATION 100
 #define ACK_MESSAGE_SIZE 10
 
-
-struct task {
-	char client[MAILBOX_SIZE];
-	char task_name[TASK_NAME_SIZE];
-	char worker[MAILBOX_SIZE];
-	char bool_answer;  // if bool_answer equals -1 the answer isn't correct, otherwise bool_answer equals 1 and the answer is correct
-}
-
 #endif
