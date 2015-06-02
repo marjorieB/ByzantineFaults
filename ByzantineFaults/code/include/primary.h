@@ -54,11 +54,13 @@ xbt_fifo_t inactive_groups;
 
 void tasks_print(void);
 
+void processing_tasks_print(void);
+
 void workers_print(void);
 
 void groups_print(xbt_fifo_t * f); 
 
-int dynar_search(const char * name);
+struct p_worker * dynar_search(const char * name);
 
 void send_finalize_to_workers(void);
 
@@ -66,9 +68,11 @@ xbt_fifo_item_t fifo_supress_item_head(xbt_fifo_t l);
 
 void * fifo_supress_head(xbt_fifo_t l);
 
-struct p_worker * give_worker_dynar(xbt_dynar_t * d, char * name);
+struct p_worker * give_worker_dynar(char * name);
 
-struct p_worker * give_worker_fifo(xbt_fifo_t * f, char * name);
+struct p_worker * give_worker_active_groups(char * name);
+
+struct p_worker * give_worker_inactive_groups(char * name);
 
 void updateReputation(struct p_task * t);
 

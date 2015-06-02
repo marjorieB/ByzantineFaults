@@ -1,7 +1,0 @@
-#include "msg/msg.h"
-
-int workers (int argc, char * argv[]) {
-
-
-
-}

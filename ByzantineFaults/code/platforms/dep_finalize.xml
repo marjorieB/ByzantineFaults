@@ -14,7 +14,7 @@
 
 	<process host="primary" function="primary">
 		<argument value="1"/> <!-- id of the primary -->
-		<argument value="1"/> <!-- number of clients -->
+		<argument value="2"/> <!-- number of clients -->
 	</process>
 
 	<process host="worker" function="worker">

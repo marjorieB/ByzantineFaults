@@ -21,8 +21,16 @@ void receive_answer(char * myMailbox) {
 	_XBT_GNUC_UNUSED int res;
 
 	res = MSG_task_receive(&(answer), myMailbox);
-   xbt_assert(res == MSG_OK, "MSG_task_receive failed on client");
-	MSG_task_destroy(answer);
+	xbt_assert(res == MSG_OK, "MSG_task_receive failed on client");
+
+	if (!strcmp(MSG_task_get_name(answer), "answer")) {
+   	printf("%s: I receive the answer to %s\n", myMailbox, (char *)MSG_task_get_data(answer));
+	}
+	else {
+		printf("%s, message incorrect\n", myMailbox);
+	}
+
+	MSG_task_destroy(answer);	
 }
 
 
@@ -59,6 +67,7 @@ int client (int argc, char * argv[]) {
 	}
 	
 	// signal to the primary that there is no more tasks to treat for that client
+	printf("%s: I send finalize\n", myMailbox);
 	send_finalize(primary);
 
 	return 0;

@@ -1,7 +1,7 @@
 #ifndef _CLIENT_H
 #define _CLIENT_H
 
-#define NB_REQUESTS 40
+#define NB_REQUESTS 2
 
 void send_task(int i, char * mailbox, char * myMailbox);
 

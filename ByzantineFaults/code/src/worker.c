@@ -5,7 +5,6 @@
 
 
 void ask_to_join(char * mailbox, char * myMailbox) {
-	printf("%s ask to join the system\n", myMailbox);
 	msg_task_t join = MSG_task_create("joining", 0, 0, myMailbox);
 	MSG_task_send(join, mailbox);
 }
@@ -13,7 +12,7 @@ void ask_to_join(char * mailbox, char * myMailbox) {
 
 void receive_ack(struct worker * worker, char * myMailbox) {
 	_XBT_GNUC_UNUSED int res;
-	msg_task_t ack;
+	msg_task_t ack = NULL;
 
 	res = MSG_task_receive(&(ack), myMailbox);
 	xbt_assert(res == MSG_OK, "MSG_task_receive failed on worker");
@@ -21,7 +20,6 @@ void receive_ack(struct worker * worker, char * myMailbox) {
 	strcpy(worker->primary, (char *)MSG_task_get_data(ack));
 
 	MSG_task_destroy(ack);
-	printf("%s: I receive my acknowledgment\n", myMailbox);
 }
 
 
@@ -34,8 +32,6 @@ void treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) {
 	strcpy(data_toSend.worker_name, myMailbox);
 	strcpy(data_toSend.task_name, MSG_task_get_name(task));
 
-	printf("%s: received task: name=%s client=%s\n", myMailbox, MSG_task_get_name(task), (char *)MSG_task_get_data(task));
-
 	if ((rand() % 100) <= me->reputation) {
 		data_toSend.bool_answer = GOOD_ANSWER;
 	}
@@ -43,6 +39,7 @@ void treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) {
 		data_toSend.bool_answer = BAD_ANSWER;
 	} 	
 	
+	printf("%s: I send the answer of %s %s to %s\n", myMailbox, data_toSend.task_name, data_toSend.client, me->primary);
 	answer = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, &data_toSend);
 	MSG_task_send(answer, me->primary);
 }
@@ -64,6 +61,7 @@ int worker (int argc, char * argv[]) {
 	strcpy(primary, argv[2]);
 	me->reputation = atoi(argv[3]);
 
+	printf("%s: ask to join the system to %s\n", myMailbox, primary);
 	ask_to_join(primary, myMailbox);
 
 	receive_ack(me, myMailbox);
@@ -78,13 +76,13 @@ int worker (int argc, char * argv[]) {
 		xbt_assert(res == MSG_OK, "MSG_task_receive failed on worker");
 
 		if (!strcmp(MSG_task_get_name(task), "finalize")) {
+			printf("%s: I receive finalize\n", myMailbox);
 			MSG_task_destroy(task);
 			task = NULL;
 			break;
 		}
 		else if (!strncmp(MSG_task_get_name(task), "task", strlen("task") * sizeof(char))) {
 			// if the availability_file still don't work, do a random to know if the worker will answer and put a percentage of availability in the xml file to describe the node
-			printf("%s: receive a task\n", myMailbox);
 			treat_task_worker(me, task, myMailbox);
 			MSG_task_destroy(task);
 			task = NULL;

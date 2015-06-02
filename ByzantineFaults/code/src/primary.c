@@ -17,6 +17,15 @@ void tasks_print() {
 	}
 }
 
+void processing_tasks_print() {
+	xbt_fifo_item_t i;
+	struct p_task * n;
+
+	printf("content of the list \"processing_tasks\":\n");
+   for(i = xbt_fifo_get_first_item(processing_tasks); ((i) ? (n = (struct p_task *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+		printf("%p client: %s, task: %s\n", n, n->client, n->task_name);
+	}
+}
 
 void workers_print() {
 	struct p_worker p_w;
@@ -24,7 +33,7 @@ void workers_print() {
 
 	printf("list of the workers of the system\n");
 	xbt_dynar_foreach (workers, cpt, p_w) {
- 		printf("p_w.name= %s\np_w.reputation=%d\n", p_w.mailbox, p_w.reputation);
+ 		printf("p_w.name= %s, p_w.reputation=%d, pointeur=%p\n", p_w.mailbox, p_w.reputation, &p_w);
 	}
 }
 
@@ -49,16 +58,16 @@ void groups_print(xbt_fifo_t * f) {
 
 
 // this function permits to find if an element of the dynamic array (passed in argument) has as identifier the name in argument
-int dynar_search(const char * name) {
+struct p_worker * dynar_search(const char * name) {
 	unsigned int cpt;
-	struct p_worker p_w;
+	struct p_worker * p_w = (struct p_worker *) malloc(sizeof(struct p_worker));
 
-	xbt_dynar_foreach (workers, cpt, p_w) {
- 		if (!strcmp(p_w.mailbox, name)) {
-			return cpt;
+	xbt_dynar_foreach (workers, cpt, *p_w) {
+ 		if (!strcmp(p_w->mailbox, name)) {
+			return p_w;
 		}
 	}
-	return -1;
+	return NULL;
 }
 
 
@@ -68,12 +77,12 @@ void send_finalize_to_workers() {
 	xbt_fifo_item_t i;
 	xbt_dynar_t * n;
 
+	// at the end the workers can be in the workers list or in the inactive_groups. But as their is no more tasks from client, it is impossible to have worker in the active groups
 	xbt_dynar_foreach (workers, cpt, p_w) {
 		msg_task_t finalize = MSG_task_create("finalize", 0, 0, NULL);
 		MSG_task_send(finalize, p_w.mailbox);
 	}	
 
-	// de même pour les workers dans les groupes inactifs (il ne devrait plus en avoir d'actifs si tous les clients ont fini)
    for(i = xbt_fifo_get_first_item(inactive_groups); ((i) ? (n = (xbt_dynar_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {		
 		struct p_worker p_w;
 		unsigned int cpt;
@@ -87,24 +96,26 @@ void send_finalize_to_workers() {
 
 
 void add_new_worker(const char * name, char * myMailbox) {
-	int index;
+	struct p_worker * w_found = (struct p_worker *) malloc(sizeof(struct p_worker));
 	msg_task_t ack;
 	struct p_worker * worker = (struct p_worker *) malloc(sizeof(struct p_worker));
 
 	// we must verify that it isn't a worker we already have, if it is the case, we need to reset it (the node has been shutdown and the primary didn't seen it.
-	if ((index = dynar_search(name)) != -1) {
-		xbt_dynar_remove_at(workers, index, NULL);
+	if ((w_found = dynar_search(name)) != NULL) {
+		w_found->totR = 0;
+		w_found->totC = 0;
+		updateReputation_Sonnek(w_found);
 	}
-	
-	// creation of a new worker
-	strcpy(worker->mailbox, name);
-	worker->totR = 0;
-	worker->totC = 0;
-	updateReputation_Sonnek(worker);
-	printf("valeur de la réputation: %d\n", worker->reputation);
+	else {
+		// creation of a new worker
+		strcpy(worker->mailbox, name);
+		worker->totR = 0;
+		worker->totC = 0;
+		updateReputation_Sonnek(worker);
+		printf("valeur de la réputation: %d\n", worker->reputation);
 
-	xbt_dynar_push(workers, worker);
-	
+		xbt_dynar_push(workers, worker);
+	}
 	printf("sending acknowledgement to the worker\n");
 	ack = MSG_task_create("ack", ACK_COMPUTE_DURATION, ACK_MESSAGE_SIZE, myMailbox);
 	MSG_task_send(ack, name);	
@@ -163,17 +174,20 @@ void treat_tasks() {
 	// put the group that have a task to the list of active group and put the tasks in a list of processing task
 	xbt_fifo_item_t i;
 	xbt_dynar_t * n;
-	int cpt = 0;
 	int k;
+	struct p_worker p_w;
+	unsigned int cpt;
+	int nb = 0;
 
    for(i = xbt_fifo_get_first_item(inactive_groups); ((i) ? (n = (xbt_dynar_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 		if (xbt_fifo_size(tasks) != 0) {
 			struct p_task * t = (struct p_task *) malloc(sizeof(struct p_task));
 			msg_task_t * to_process = (msg_task_t *) malloc(sizeof(msg_task_t));
 
-			to_process = fifo_supress_head(tasks);			
-			strcpy(t->client, MSG_task_get_data(*to_process));
+			to_process = fifo_supress_head(tasks);		
+			strcpy(t->client, (char *)MSG_task_get_data(*to_process));
 			strcpy(t->task_name, MSG_task_get_name(*to_process));
+			t->w_answers = xbt_dynar_new(sizeof(struct p_answer_worker), NULL);
 			t->duration = MSG_task_get_compute_duration(*to_process);
 			t->size = MSG_task_get_data_size(*to_process);
 			t->final_answer = 0;
@@ -182,47 +196,63 @@ void treat_tasks() {
 			t->nb_false_answers = 0;
 			t->nb_correct_answers = 0;
 
-			struct p_worker p_w;
-			unsigned int cpt;
+			nb++;
 
 			xbt_dynar_foreach (*n, cpt, p_w) {
+				printf("send task %s %s to %s\n", t->client, t->task_name, p_w.mailbox);  
 	 			msg_task_t to_send = MSG_task_create(MSG_task_get_name(*to_process), MSG_task_get_compute_duration(*to_process), MSG_task_get_data_size(*to_process), MSG_task_get_data(*to_process));
 				MSG_task_send(to_send, p_w.mailbox);
 			}
 
-			xbt_fifo_push(processing_tasks, to_process);
+			xbt_fifo_push(processing_tasks, t);
 			cpt++;
 		}
 		else {
 			break;
 		}
 	}
-	for (k = 0; k < cpt; k++) {
+	printf("valeur de cpt=%d\n", cpt);
+	printf("avant transfert de groupes\n");
+	printf("content of the inactive groups\n");
+	groups_print(&inactive_groups);
+	printf("content of the active groups\n");
+	groups_print(&active_groups);
+	for (k = 0; k < nb; k++) {
 		xbt_fifo_push(active_groups, (xbt_dynar_t *)xbt_fifo_get_item_content(xbt_fifo_get_first_item(inactive_groups)));
 		xbt_fifo_remove(inactive_groups, (xbt_dynar_t *)xbt_fifo_get_item_content(xbt_fifo_get_first_item(inactive_groups)));
 	}
+	tasks_print();
+	processing_tasks_print();
+	printf("content of the inactive groups\n");
+	groups_print(&inactive_groups);
+	printf("content of the active groups\n");
+	groups_print(&active_groups);
 }
 
+
 void try_to_treat_tasks() {
+	printf("TRY_TO_TREAT_TASKS: content of the inactive groups\n");
+	groups_print(&inactive_groups);
+	printf("TRY_TO_TREAT_TASKS: number of available workers=%ld\n", xbt_dynar_length(workers));
 	if ((xbt_fifo_size(inactive_groups) != 0) || (xbt_dynar_length(workers) >= NB_MIN_GROUP)) {
 		if (xbt_dynar_length(workers) >= NB_MIN_GROUP) {
 			formGroup_fixed_fit();
 			printf("content of the inactive groups\n");
 			groups_print(&inactive_groups);
 		}
+		printf("TRY_TO_TREAT_TASKS: it is possible to treat tasks-> go processing\n");
 		treat_tasks();
-		printf("after treat_tasks\n");	
 		tasks_print();
 	}	
 }
 
 
-struct p_worker * give_worker_dynar(xbt_dynar_t * d, char * name) {
+struct p_worker * give_worker_dynar(char * name) {
 	unsigned int cpt;
 	struct p_worker * p_w = (struct p_worker *)malloc(sizeof(struct p_worker));
 
-	xbt_dynar_foreach (*d, cpt, *p_w) {
- 		if (!strcmp(p_w->mailbox, name)) {
+	xbt_dynar_foreach (workers, cpt, *p_w) {
+ 		if (!strcmp(p_w->mailbox, name)) {	
 			return p_w;
 		}
 	}
@@ -230,11 +260,30 @@ struct p_worker * give_worker_dynar(xbt_dynar_t * d, char * name) {
 }
 
 
-struct p_worker * give_worker_fifo(xbt_fifo_t * f, char * name) {
+struct p_worker * give_worker_active_groups(char * name) {
 	xbt_fifo_item_t i;
 	xbt_dynar_t * n;
 
-	for(i = xbt_fifo_get_first_item(*f); ((i) ? (n = (xbt_dynar_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+	for(i = xbt_fifo_get_first_item(active_groups); ((i) ? (n = (xbt_dynar_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+	
+		struct p_worker * p_w = (struct p_worker *)malloc(sizeof(struct p_worker));
+		unsigned int cpt;
+
+		xbt_dynar_foreach (*n, cpt, *p_w) {
+	 		if (!strcmp(p_w->mailbox, name)) {
+				return p_w;
+			}
+		}
+	}
+	return NULL;
+}
+
+
+struct p_worker * give_worker_inactive_groups(char * name) {
+	xbt_fifo_item_t i;
+	xbt_dynar_t * n;
+
+	for(i = xbt_fifo_get_first_item(inactive_groups); ((i) ? (n = (xbt_dynar_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 	
 		struct p_worker * p_w = (struct p_worker *)malloc(sizeof(struct p_worker));
 		unsigned int cpt;
@@ -251,14 +300,14 @@ struct p_worker * give_worker_fifo(xbt_fifo_t * f, char * name) {
 
 void updateReputation(struct p_task * t) {
 	struct p_answer_worker p_a_w;
-	struct p_worker * toModify = (struct p_worker *) malloc(sizeof(struct p_worker));
+	struct p_worker * toModify;
 	unsigned int cpt;
 
 	xbt_dynar_foreach (t->w_answers, cpt, p_a_w) {
 		// search for the worker on the workers list
-		if ((toModify = give_worker_dynar(&workers, p_a_w.worker_name)) == NULL) {
-			if ((toModify = give_worker_fifo(&inactive_groups, p_a_w.worker_name)) == NULL) {
-				if ((toModify = give_worker_fifo(&active_groups, p_a_w.worker_name)) == NULL) {
+		if ((toModify = give_worker_dynar(p_a_w.worker_name)) == NULL) {
+			if ((toModify = give_worker_inactive_groups(p_a_w.worker_name)) == NULL) {
+				if ((toModify = give_worker_active_groups(p_a_w.worker_name)) == NULL) {
 					printf("unknown worker: impossible\n");
 					exit(1);
 				}
@@ -269,6 +318,7 @@ void updateReputation(struct p_task * t) {
 			toModify->totC++;
 		}
 		updateReputation_Sonnek (toModify);
+		printf("réputation ici %d %p\n", toModify->reputation, toModify);	
 	}
 }
 
@@ -289,10 +339,12 @@ void treat_answer(msg_task_t t) {
 	strcpy(p_a_w->worker_name, w_t->worker_name);
 	p_a_w->bool_answer = w_t->bool_answer;
 
+
 	// the primary have to find the element of processing_tasks that correspond to the answer
    for(i = xbt_fifo_get_first_item(processing_tasks); ((i) ? (n = (struct p_task *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 		if ((strcmp(n->client, w_t->client) == 0) && (strcmp(n->task_name, w_t->task_name) == 0)) {
-			// add the worker to w_answers			
+			// add the worker to w_answers
+			//printf("task %s %s found, update it\n", n->client, n->task_name);			
 			xbt_dynar_push(n->w_answers, p_a_w);
 			n->nb_answers_received++;
 			if (w_t->bool_answer == BAD_ANSWER) {
@@ -312,6 +364,7 @@ void treat_answer(msg_task_t t) {
 
 				********************************************************************************* */
 			
+				printf("receive all the answers for %s %s\n", n->client, n->task_name);
 				if ((n->nb_correct_answers == n->nb_forwarded) || (n->nb_false_answers == n->nb_forwarded)) {
 					if(n->nb_correct_answers == n->nb_forwarded) {
 						n->final_answer = GOOD_ANSWER;
@@ -319,8 +372,15 @@ void treat_answer(msg_task_t t) {
 					else {
 						n->final_answer = BAD_ANSWER;
 					}
+					// send the answer to the client
+					msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+					MSG_task_send(answer_client, n->client);
+
 					// update the reputation of the workers and suppress the processing task
 					updateReputation(n);
+					printf("after update prints the active and workers groups\n");
+					groups_print(&active_groups);
+					workers_print();
 					process = 1;					
 				}
 				else {
@@ -329,33 +389,49 @@ void treat_answer(msg_task_t t) {
 
 				}
 			}
+			break;
 		}
-		if (process == 1) {
-			// suppress the task (because it has been accomplished) from the processing_tasks
-			if(xbt_fifo_remove(processing_tasks, n) == 1) {
-				printf("good removal\n");
-			}
-		}
-		break;
-	}	
+	}
 	// move the worker from the active groups from the workers
 	xbt_fifo_item_t j;
 	xbt_dynar_t * d;
 
 	for(j = xbt_fifo_get_first_item(active_groups); ((j) ? (d = (xbt_dynar_t *)(xbt_fifo_get_item_content(j))) : (NULL)); j = xbt_fifo_get_next_item(j)) {
-	
+
 		struct p_worker p_w;
 		unsigned int cpt;
 
 		xbt_dynar_foreach (*d, cpt, p_w) {
 	 		if (!strcmp(p_w.mailbox, w_t->worker_name)) {
+				printf("reputation dans dynar %d\n", p_w.reputation);
 				break;
 			}
 		}
 		xbt_dynar_remove_at(*d, cpt, toAddToWorkers);
 		break;
 	}
-	xbt_dynar_push(workers, toAddToWorkers);	
+	xbt_dynar_push(workers, toAddToWorkers);
+	if (process == 1) {
+		// suppress the group in active groups
+		if (xbt_fifo_remove(active_groups, d) != 1) {
+			printf("problem detected when removing a xbt_dynar_t from active_groups\n");
+		}
+		else {
+			printf("supression of the active group\n");
+		}
+		// suppress the task (because it has been accomplished) from the processing_tasks
+		if(xbt_fifo_remove(processing_tasks, n) != 1) {
+			printf("problem detected when removing a struct p_task from processing_tasks\n");
+		}
+		else {
+			printf("task suppressed from the processing_tasks\n");
+		}
+	}
+
+	printf("content of the inactive groups\n");
+	groups_print(&inactive_groups);
+	printf("content of the active groups\n");
+	groups_print(&active_groups);
 }
 
 
@@ -381,14 +457,13 @@ int primary (int argc, char * argv[]) {
 	nb_clients = atoi(argv[2]);
 
 	while (1) {
-		printf("primary: waiting for message\n");
 		// reception of a message
 		MSG_task_receive(&(task_todo), myMailbox);
 
 		/* the primary can receive 4 types of messages: requests from client, 
 			finalization from client, join from workers, or answer to tasks of workers */
 		if (!strcmp(MSG_task_get_name(task_todo), "finalize")) {
-			printf("primary: reception de finalize\n");
+			printf("%s: I receive finalize\n", myMailbox);
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
 			nb_finalize++;
@@ -399,25 +474,37 @@ int primary (int argc, char * argv[]) {
 			}
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "task", sizeof(char) * strlen("task"))) {
-			
-			printf("%s: I receive a request %s from %s\n", myMailbox, MSG_task_get_name(task_todo), (char *)MSG_task_get_data(task_todo));
 			// the primary put the task to do in a fifo
+			printf("%s: I receive a task\n", myMailbox);
 			put_task_fifo(task_todo);
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
 			tasks_print();
 			try_to_treat_tasks();
+			printf("end of try_to_treat_tasks\n");
+			tasks_print();
+			processing_tasks_print();
+			printf("content of the inactive groups\n");
+			groups_print(&inactive_groups);
+			printf("content of the active groups\n");
+			groups_print(&active_groups);
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "join", sizeof(char) * strlen("join"))) {
-
-			printf("receive a joining request from %s\n", (char *)MSG_task_get_data(task_todo));
-			// a worker want to join the system			
+			// a worker want to join the system		
+			printf("%s: I receive a join\n", myMailbox);	
 			add_new_worker((char *)MSG_task_get_data(task_todo), myMailbox);
 			workers_print();
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
-			printf("number of workers %ld, NB_MIN_GROUP=%d\n", xbt_dynar_length(workers), NB_MIN_GROUP);
 			try_to_treat_tasks();
+
+			printf("end of try_to_treat_tasks\n");
+			tasks_print();
+			processing_tasks_print();
+			printf("content of the inactive groups\n");
+			groups_print(&inactive_groups);
+			printf("content of the active groups\n");
+			groups_print(&active_groups);
 
 			/*if (xbt_dynar_length(workers) >= NB_MIN_GROUP) {
 				printf("%s: formation of inactive groups\n", myMailbox);
@@ -433,17 +520,15 @@ int primary (int argc, char * argv[]) {
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "answer", sizeof(char) * strlen("answer"))) {
 			// the primary receive an answer to a request from a worker
-			printf("%s: receive an answer\n", myMailbox);
+			printf("%s: I receive an answer\n", myMailbox);
 			treat_answer(task_todo);
 			try_to_treat_tasks();
-			printf("content of the active groups\n");
-			groups_print(&active_groups);
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
 		}
 		else {
 			// messages incorrect
-			printf("%s: message incorrect\n", myMailbox);
+			printf("%s: I receive an incorrect message\n", myMailbox);
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
 		}

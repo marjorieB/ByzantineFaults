@@ -11,7 +11,6 @@ void formGroup_fixed_fit() {
 	srand(time(NULL));
 
 	while (xbt_dynar_length(workers) >= NB_FIXED_GROUP) {
-		printf("number of workers : %ld\n", xbt_dynar_length(workers));
 		xbt_dynar_t * w = (xbt_dynar_t *)malloc(sizeof(xbt_dynar_t));
 		*w = xbt_dynar_new(sizeof(struct p_worker), NULL);	
 
@@ -25,5 +24,4 @@ void formGroup_fixed_fit() {
 		}
 		xbt_fifo_push(inactive_groups, w);
 	}
-	printf("end of formGroup_fixed_fit\n");
 }
