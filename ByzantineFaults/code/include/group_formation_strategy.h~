@@ -10,8 +10,6 @@
 
 int compare_reputation_workers (void * w_a, void * w_b);
 
-double compute_LOC(xbt_dynar_t * w); 
-
 void formGroup_fixed_fit(void);
 
 void formGroup_first_fit(double target_LOC);
