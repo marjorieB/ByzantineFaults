@@ -26,22 +26,28 @@ void receive_ack(struct worker * worker, char * myMailbox) {
 void treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) {
 	msg_task_t answer;	
 	struct w_task data_toSend;
-		
+
+	srand(time(NULL));	
+	
+	printf("before execution of the task %s, %f\n", myMailbox, MSG_get_clock());
 	MSG_task_execute(task);
+	printf("after execution of the task %s, %f\n", myMailbox, MSG_get_clock());
 	strcpy(data_toSend.client, MSG_task_get_data(task));
 	strcpy(data_toSend.worker_name, myMailbox);
 	strcpy(data_toSend.task_name, MSG_task_get_name(task));
 
 	if ((rand() % 100) <= me->reputation) {
-		data_toSend.bool_answer = GOOD_ANSWER;
+		data_toSend.answer = GOOD_ANSWER;
 	}
 	else {
-		data_toSend.bool_answer = BAD_ANSWER;
+		data_toSend.answer = rand() % BAD_ANSWER;
 	} 	
 	
 	printf("%s: I send the answer of %s %s to %s\n", myMailbox, data_toSend.task_name, data_toSend.client, me->primary);
 	answer = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, &data_toSend);
-	MSG_task_send(answer, me->primary);
+	printf("%s %s %f\n", myMailbox, me->primary, MSG_get_clock());
+	msg_error_t err = MSG_task_send(answer, me->primary);
+	printf("value of err = %d\n", err);
 }
 
 
@@ -66,8 +72,6 @@ int worker (int argc, char * argv[]) {
 
 	receive_ack(me, myMailbox);
 
-	srand(time(NULL));
-
 	while (1) {
 		_XBT_GNUC_UNUSED int res;
 		msg_task_t task = NULL;
@@ -76,7 +80,7 @@ int worker (int argc, char * argv[]) {
 		xbt_assert(res == MSG_OK, "MSG_task_receive failed on worker");
 
 		if (!strcmp(MSG_task_get_name(task), "finalize")) {
-			printf("%s: I receive finalize\n", myMailbox);
+			printf("%s: I receive finalize %f\n", myMailbox, MSG_get_clock());
 			MSG_task_destroy(task);
 			task = NULL;
 			break;

@@ -17,6 +17,7 @@ void tasks_print() {
 	}
 }
 
+
 void processing_tasks_print() {
 	xbt_fifo_item_t i;
 	struct p_task * n;
@@ -26,6 +27,7 @@ void processing_tasks_print() {
 		printf("client: %s, task: %s\n", n->client, n->task_name);
 	}
 }
+
 
 void workers_print() {
 	struct p_worker p_w;
@@ -192,6 +194,7 @@ void treat_tasks() {
 			t->size = MSG_task_get_data_size(*to_process);
 			t->final_answer = 0;
 			t->nb_forwarded = xbt_dynar_length(*n);
+			t->nb_crashed = 0;
 			t->nb_answers_received = 0;
 			t->nb_false_answers = 0;
 			t->nb_correct_answers = 0;
@@ -304,23 +307,72 @@ void updateReputation(struct p_task * t) {
 	unsigned int cpt;
 
 	xbt_dynar_foreach (t->w_answers, cpt, p_a_w) {
+		char name[MAILBOX_SIZE];
+		unsigned int cpt1;
+
+		xbt_dynar_foreach(p_a_w.worker_names, cpt1, name) {
 		// search for the worker on the workers list
-		if ((toModify = give_worker_dynar(p_a_w.worker_name)) == NULL) {
-			if ((toModify = give_worker_inactive_groups(p_a_w.worker_name)) == NULL) {
-				if ((toModify = give_worker_active_groups(p_a_w.worker_name)) == NULL) {
-					printf("unknown worker: impossible\n");
-					exit(1);
-				}
-			} 			
+			if ((toModify = give_worker_dynar(name)) == NULL) {
+				if ((toModify = give_worker_inactive_groups(name)) == NULL) {
+					if ((toModify = give_worker_active_groups(name)) == NULL) {
+						printf("unknown worker: impossible\n");
+						exit(1);
+					}
+				} 			
+			}
+			toModify->totR++;
+			if (p_a_w.answer == t->final_answer) {
+				toModify->totC++;
+			}
+			updateReputation_Sonnek (toModify);
+			printf("réputation ici %d\n", toModify->reputation);	
 		}
-		toModify->totR++;
-		if (p_a_w.bool_answer == t->final_answer) {
-			toModify->totC++;
-		}
-		updateReputation_Sonnek (toModify);
-		printf("réputation ici %d\n", toModify->reputation);	
 	}
 }
+
+
+void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_name, unsigned long int answer) {
+	unsigned int cpt;
+	struct p_answer_worker w_a;
+	struct p_answer_worker * toModify = NULL;
+	struct p_answer_worker * toAdd = (struct p_answer_worker *) malloc(sizeof(struct p_answer_worker));
+
+	xbt_dynar_foreach(*w_answers, cpt, w_a) {
+ 		if (w_a.answer == answer) {	
+			toModify = xbt_dynar_get_ptr(*w_answers, cpt);
+		}
+	}
+	if (toModify == NULL) {
+		// the answer returned by the worker hasn't been returned for that request, we create it
+		toAdd->answer = answer;
+		toAdd->worker_names = xbt_dynar_new(sizeof(char[MAILBOX_SIZE]), NULL);
+		xbt_dynar_push(toAdd->worker_names, worker_name);
+		xbt_dynar_push(p_t->w_answers, toAdd);
+	}
+	else {
+		// the answer returned by the worker has been already returned by other(s) worker(s), we just add the name of the worker to the list of workers having returned this answer
+		xbt_dynar_push(toModify->worker_names, worker_name);
+	}
+}
+
+
+void compute_majoritary_answer(struct p_task * p_t, unsigned long int * majoritary_answer, int * nb_majoritary_answer,int * nb_obtained_majoritary_answer) {
+	unsigned int cpt;
+	struct p_answer_worker w_a;
+	int max = 0;
+
+	xbt_dynar_foreach(p_t->w_answers, cpt, w_a) {
+ 		if (xbt_dynar_length(w_a.worker_names) > max) {	
+			max = xbt_dynar_length(w_a.worker_names);
+			*majoritary_answer = w_a.answer;
+			*nb_majoritary_answer = 1;
+		}
+		else if (xbt_dynar_length(w_a.worker_names) == max) {
+			*nb_majoritary_answer = *nb_majoritary_answer + 1;
+		}
+	}
+	*nb_obtained_majoritary_answer = max;	
+}	
 
 
 void treat_answer(msg_task_t t) {
@@ -329,49 +381,46 @@ void treat_answer(msg_task_t t) {
 	// if all workers answer the same way, give the answer to the client and update the reputation, and put all the workers on the workers dynamic array
 	// if not ask the requests to additional nodes (that the primary put in the same active group than the previous answered nodes
 	struct w_task * w_t = (struct w_task *) malloc(sizeof(struct w_task));
-	struct p_answer_worker * p_a_w = (struct p_answer_worker *) malloc(sizeof(struct p_answer_worker));
 	struct p_worker * toAddToWorkers = (struct p_worker *) malloc(sizeof(struct p_worker));
 	xbt_fifo_item_t i;
 	struct p_task * n;
 	char process = -1;
+	unsigned long int majoritary_answer = BAD_ANSWER + 1; // we initialize with a value that answer couldn't have
+	int nb_majoritary_answer = 0;
+	int nb_obtained_majoritary_answer = 0;
 
 	w_t = (struct w_task *)MSG_task_get_data(t);
-	strcpy(p_a_w->worker_name, w_t->worker_name);
-	p_a_w->bool_answer = w_t->bool_answer;
-
 
 	// the primary have to find the element of processing_tasks that correspond to the answer
    for(i = xbt_fifo_get_first_item(processing_tasks); ((i) ? (n = (struct p_task *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 		if ((strcmp(n->client, w_t->client) == 0) && (strcmp(n->task_name, w_t->task_name) == 0)) {
+			printf("primary: find the task\n");
 			// add the worker to w_answers
-			//printf("task %s %s found, update it\n", n->client, n->task_name);			
-			xbt_dynar_push(n->w_answers, p_a_w);
+			add_answers(n, &(n->w_answers), w_t->worker_name, w_t->answer);
 			n->nb_answers_received++;
-			if (w_t->bool_answer == BAD_ANSWER) {
+			if (w_t->answer > GOOD_ANSWER) {
 				n->nb_false_answers++;
 			}
 			else {
 				n->nb_correct_answers++;
 			}
-			if (n->nb_answers_received == n->nb_forwarded) {
+			if ((n->nb_answers_received + n->nb_crashed) == n->nb_forwarded) {
 				/* *******************************************************************************
 
 
 				TO REPLACE BY A FUNCTION SAYING IF WE CAN AUTORISED THE ANSWER (FOR EXAMPLE AFTER 
 				REPLICATION WE DON'T WAIT TO HAVE ALL WORKERS ANSWERING THE SAME ANSWER (IT IS 
-				IMPOSSIBLE) SO WE NEED TO HAVE A NEW STRATEGY SAYING WHEN AN ANSWER IS CORREC
+				IMPOSSIBLE) SO WE NEED TO HAVE A NEW STRATEGY SAYING WHEN AN ANSWER IS CORRECT
 
 
 				********************************************************************************* */
-			
+				compute_majoritary_answer(n, &majoritary_answer, &nb_majoritary_answer, &nb_obtained_majoritary_answer); 			
+
 				printf("receive all the answers for %s %s\n", n->client, n->task_name);
-				if ((n->nb_correct_answers == n->nb_forwarded) || (n->nb_false_answers == n->nb_forwarded)) {
-					if(n->nb_correct_answers == n->nb_forwarded) {
-						n->final_answer = GOOD_ANSWER;
-					}
-					else {
-						n->final_answer = BAD_ANSWER;
-					}
+				if (nb_majoritary_answer == 1) {
+					// there is no ambiguity on the final result: the majority doesn't necessarly correspond to the absoulute majority
+
+					n->final_answer = majoritary_answer;
 					// send the answer to the client
 					msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 					MSG_task_send(answer_client, n->client);
@@ -381,8 +430,8 @@ void treat_answer(msg_task_t t) {
 					printf("after update prints the active and workers groups\n");
 					groups_print(&active_groups);
 					workers_print();
-					process = 1;					
-				}
+					process = 1;
+				}					
 				else {
 					// replication of the task on additional nodes and  
 
@@ -392,6 +441,8 @@ void treat_answer(msg_task_t t) {
 			break;
 		}
 	}
+	printf("primary; will to remove the worker %s\n", w_t->worker_name);
+
 	// move the worker from the active groups from the workers
 	xbt_fifo_item_t j;
 	xbt_dynar_t * d;
@@ -402,11 +453,13 @@ void treat_answer(msg_task_t t) {
 		unsigned int cpt;
 
 		xbt_dynar_foreach (*d, cpt, p_w) {
+			printf("primary: I found the worker: cpt = %d\n", cpt);
 	 		if (!strcmp(p_w.mailbox, w_t->worker_name)) {
 				printf("reputation dans dynar %d\n", p_w.reputation);
 				break;
 			}
 		}
+		printf("removing: cpt=%d\n", cpt);
 		xbt_dynar_remove_at(*d, cpt, toAddToWorkers);
 		break;
 	}
@@ -523,6 +576,11 @@ int primary (int argc, char * argv[]) {
 			printf("%s: I receive an answer\n", myMailbox);
 			treat_answer(task_todo);
 			try_to_treat_tasks();
+			MSG_task_destroy(task_todo);
+			task_todo = NULL;
+		}
+		else if (!strncmp(MSG_task_get_name(task_todo), "crash", sizeof(char) * strlen("crash"))) {
+			printf("%s: I receive a message indicating the crash of %s\n", myMailbox, (char *) MSG_task_get_data(task_todo));
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
 		}

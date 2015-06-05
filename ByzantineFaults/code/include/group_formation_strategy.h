@@ -8,7 +8,11 @@
 #define FIRST_ITEM 1
 
 
-int compare_reputation_workers (void * w_a, void * w_b);
+long int factorial (int n);
+
+double combination (int a, int b);
+
+int compare_reputation_workers (const void * w_a, const void * w_b);
 
 double compute_LOC(xbt_dynar_t * w); 
 
@@ -18,7 +22,7 @@ void formGroup_first_fit(double target_LOC);
 
 void formGroup_tight_fit(void);
 
-void formGroup_random_fit(void);
+void formGroup_random_fit(double target_LOC);
 
 void formGroup_Arantes(void);
 

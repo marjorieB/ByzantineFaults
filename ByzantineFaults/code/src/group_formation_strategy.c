@@ -2,9 +2,10 @@
 #include "group_formation_strategy.h"
 #include "primary.h"
 #include <time.h>
+#include <math.h>
 
 
-int compare_reputation_workers (void * w_a, void * w_b) {
+int compare_reputation_workers (const void * w_a, const void * w_b) {
 	struct p_worker p_w_a = *(struct p_worker *) w_a;
 	struct p_worker p_w_b = *(struct p_worker *) w_b;
 
@@ -19,14 +20,53 @@ int compare_reputation_workers (void * w_a, void * w_b) {
 	}
 }
 
+long int factorial (int n) {
+	int i;	
+	long int res = 1;
+
+	for (i = 1; i <= n; i++) {
+		res = res * i;
+	}
+
+	return res;
+}
+
+double combination (int a, int b) {
+	long int fact = factorial(b);
+	long int tmp = 1;
+	int i;
+
+	for (i = 0; i <= b - 1; i++) {
+		tmp = tmp * (a - i);
+	}	
+
+	return (double)tmp / (double)fact;
+}
+
 
 double compute_LOC(xbt_dynar_t * w) {
 	int m;
-	int i;
+	double res = 0.0;
+	double reputation;
+	double tmp;
+	double alpha = 0.0;
+	double comb = 0.0;
+	unsigned int cpt;
+	struct p_worker p_w; 
 
-	for (m = xbt_dynar_t(
+	for (m = (((xbt_dynar_length(*w) - 1) / 2) + 1); m < xbt_dynar_length(*w); m++) {
+		comb = combination(xbt_dynar_length(*w), m);
+		tmp = 1.0;
+		alpha = combination(xbt_dynar_length(*w) - 1, m - 1) / combination(xbt_dynar_length(*w), m);
 
+		xbt_dynar_foreach (*w, cpt, p_w) {
+			reputation = (double)p_w.reputation / 100.0;
+			tmp = tmp * pow(reputation, alpha) * pow((1 - reputation), (1 - alpha));
+		}
+		res = res + tmp * comb;
+	}
 
+	return res;
 }
 
 void formGroup_fixed_fit() {
@@ -69,7 +109,7 @@ void formGroup_first_fit(double target_LOC) {
 			if (xbt_dynar_length(*w) >= NB_MIN_GROUP) {
 				LOC = compute_LOC(w);
 			}
-		} while(((LOC >= target_LOC) && (xbt_dynar_length(*w) >= NB_MIN_GROUP)) || (xbt_dynar_length(*w) == NB_MAX_GROUP) || (xbt_dynar_length(workers) == 0)));
+		} while(((LOC >= target_LOC) && (xbt_dynar_length(*w) >= NB_MIN_GROUP)) || (xbt_dynar_length(*w) == NB_MAX_GROUP) || (xbt_dynar_length(workers) == 0));
 		if (xbt_dynar_length(workers) == 0) {
 			if((LOC >= target_LOC) && (xbt_dynar_length(*w) >= NB_MIN_GROUP)) {
 				xbt_fifo_push(inactive_groups, w);
@@ -99,7 +139,7 @@ void formGroup_tight_fit() {
 }
 
 
-void formGroup_random_fit() {
+void formGroup_random_fit(double target_LOC) {
 	int nb_rand;
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
@@ -116,7 +156,7 @@ void formGroup_random_fit() {
 			xbt_dynar_push(*w, toAdd);
 
 			LOC = compute_LOC(w);
-		} while(((LOC >= target_LOC) && (xbt_dynar_length(*w) >= NB_MIN_GROUP)) || (xbt_dynar_length(*w) == NB_MAX_GROUP) || (xbt_dynar_length(workers) == 0)));
+		} while(((LOC >= target_LOC) && (xbt_dynar_length(*w) >= NB_MIN_GROUP)) || (xbt_dynar_length(*w) == NB_MAX_GROUP) || (xbt_dynar_length(workers) == 0));
 		if (xbt_dynar_length(workers) == 0) {
 			if((LOC >= target_LOC) && (xbt_dynar_length(*w) >= NB_MIN_GROUP)) {
 				xbt_fifo_push(inactive_groups, w);

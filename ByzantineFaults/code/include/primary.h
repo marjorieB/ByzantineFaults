@@ -9,11 +9,12 @@
 struct p_task {
 	char client[MAILBOX_SIZE]; 
 	char task_name[TASK_NAME_SIZE];
-	xbt_dynar_t w_answers; // list of struct p_answer_worker
+	xbt_dynar_t w_answers; // array of struct p_answer_worker
 	int duration;
 	int size;
-	int final_answer;
+	long int final_answer;
 	int nb_forwarded;
+	int nb_crashed;
 	int nb_answers_received;
 	int nb_false_answers;
 	int nb_correct_answers;
@@ -27,18 +28,23 @@ struct p_worker {
 };
 
 struct p_answer_worker {
-	char worker_name[MAILBOX_SIZE];
-	char bool_answer;
+	xbt_dynar_t worker_names;
+	unsigned int long answer;
 };
 
 /*struct group {
 	xbt_dynar_t workers;
 };*/
 
-struct pimary {
+struct qualitative_majority_answer {
+
+
+};
+
+/*struct pimary {
 	xbt_dynar_t active_workers;
 	xbt_dynar_t passive_workers;
-};
+};*/
 
 xbt_dynar_t workers;
 
@@ -75,6 +81,10 @@ struct p_worker * give_worker_active_groups(char * name);
 struct p_worker * give_worker_inactive_groups(char * name);
 
 void updateReputation(struct p_task * t);
+
+void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_name, unsigned long int answer);
+
+void compute_majoritary_answer(struct p_task * p_t, unsigned long int * majoritary_answer, int * nb_majoritary_answer,int * nb_obtained_majoritary_answer);
 
 void add_new_worker(const char * name, char * myMailbox);
 

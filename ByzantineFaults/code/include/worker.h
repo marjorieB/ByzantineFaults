@@ -8,7 +8,7 @@ struct w_task {
 	char client[MAILBOX_SIZE];
 	char worker_name[MAILBOX_SIZE];
 	char task_name[TASK_NAME_SIZE];
-	char bool_answer; // boolean indicated if the answer given by the worker is correct or not
+	unsigned int long answer; 
 };
 
 struct worker {

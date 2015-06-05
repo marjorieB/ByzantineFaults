@@ -10,7 +10,7 @@
 #define ACK_COMPUTE_DURATION 100
 #define ACK_MESSAGE_SIZE 10
 
-#define BAD_ANSWER -1
-#define GOOD_ANSWER 1
+#define BAD_ANSWER 100000
+#define GOOD_ANSWER 0
 
 #endif
