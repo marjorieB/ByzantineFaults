@@ -1,10 +1,13 @@
 #include "msg/msg.h"
+#include "simulator.h"
 #include "task.h"
 #include "primary.h"
+#include "additional_replication_strategy.h"
 #include "reputation_strategy.h"
 #include "group_formation_strategy.h"
 #include "fifo_private.h"
 #include <string.h>
+#include <math.h>
 
 
 void tasks_print() {
@@ -106,14 +109,33 @@ void add_new_worker(const char * name, char * myMailbox) {
 	if ((w_found = dynar_search(name)) != NULL) {
 		w_found->totR = 0;
 		w_found->totC = 0;
-		updateReputation_Sonnek(w_found);
+		if ((reputation_strategy == SYMMETRICAL) || (reputation_strategy == ASYMMETRICAL)) {
+			w_found->reputation = INITIAL_VALUE;
+		}
+		else if (reputation_strategy == BOINC) {
+			updateReputation_BOINC(w_found);
+		}
+		else {
+			// the reputation_strategy chosen is the reputation used in Sonnek
+			updateReputation_Sonnek(w_found);
+		}
 	}
 	else {
 		// creation of a new worker
 		strcpy(worker->mailbox, name);
 		worker->totR = 0;
 		worker->totC = 0;
-		updateReputation_Sonnek(worker);
+		if ((reputation_strategy == SYMMETRICAL) || (reputation_strategy == ASYMMETRICAL)) {
+			worker->reputation = INITIAL_VALUE;
+		}
+		else if (reputation_strategy == BOINC) {
+			updateReputation_BOINC(worker);
+		}
+		else {
+			// the reputation_strategy chosen is the reputation used in Sonnek
+			updateReputation_Sonnek(worker);
+		}
+
 		printf("valeur de la réputation: %d\n", worker->reputation);
 
 		xbt_dynar_push(workers, worker);
@@ -171,6 +193,7 @@ void * fifo_supress_head(xbt_fifo_t l) {
 	return content;
 }
 
+
 void treat_tasks() {
 	// travel the list of inactive groups and distribute them the tasks in the list tasks
 	// put the group that have a task to the list of active group and put the tasks in a list of processing task
@@ -192,12 +215,15 @@ void treat_tasks() {
 			t->w_answers = xbt_dynar_new(sizeof(struct p_answer_worker), NULL);
 			t->duration = MSG_task_get_compute_duration(*to_process);
 			t->size = MSG_task_get_data_size(*to_process);
-			t->final_answer = 0;
+			t->final_answer = BAD_ANSWER + 1; // none of the nodes can answer this
 			t->nb_forwarded = xbt_dynar_length(*n);
 			t->nb_crashed = 0;
 			t->nb_answers_received = 0;
 			t->nb_false_answers = 0;
 			t->nb_correct_answers = 0;
+			t->to_replicate = 0;
+			t->additional_reputations = xbt_dynar_new(sizeof(int), NULL);
+			t->active_workers = (xbt_dynar_t *)xbt_fifo_get_item_content(xbt_fifo_get_first_item(inactive_groups));
 
 			nb++;
 
@@ -237,11 +263,45 @@ void try_to_treat_tasks() {
 	printf("TRY_TO_TREAT_TASKS: content of the inactive groups\n");
 	groups_print(&inactive_groups);
 	printf("TRY_TO_TREAT_TASKS: number of available workers=%ld\n", xbt_dynar_length(workers));
-	if ((xbt_fifo_size(inactive_groups) != 0) || (xbt_dynar_length(workers) >= NB_MIN_GROUP)) {
-		if (xbt_dynar_length(workers) >= NB_MIN_GROUP) {
-			formGroup_fixed_fit();
+	if ((xbt_fifo_size(inactive_groups) != 0) || (xbt_dynar_length(workers) >= group_formation_min_number)) {
+		if (xbt_dynar_length(workers) >= group_formation_min_number) {
+			if (group_formation_strategy == FIXED_FIT) {
+				formGroup_fixed_fit();
+			}
+			else if (group_formation_strategy == FIRST_FIT) {
+				if (simulator == ARANTES) {
+					formGroup_first_fit_Arantes();
+				}
+				else {
+					// the simulator chosen is SONNEK
+					formGroup_first_fit_Sonnek();
+				}
+			}
+			else if (group_formation_strategy == TIGHT_FIT) {
+				if (simulator == ARANTES) {
+					formGroup_tight_fit_Arantes();
+				}
+				else {
+					// the simulator chosen is SONNEK
+					formGroup_tight_fit_Sonnek();
+				}
+			}
+			else {
+				// the group_formation_strategy chosen is the RANDOM_FIT
+				if (simulator == ARANTES) {
+					formGroup_random_fit_Arantes();
+				}
+				else {
+					// the simulator chosen is SONNEK
+					formGroup_random_fit_Sonnek();
+				}
+			}
 			printf("content of the inactive groups\n");
 			groups_print(&inactive_groups);
+			printf("content of the active groups\n");
+			groups_print(&active_groups);
+			workers_print();
+			printf("value of the number of workers %ld\n", xbt_dynar_length(workers)); 
 		}
 		printf("TRY_TO_TREAT_TASKS: it is possible to treat tasks-> go processing\n");
 		treat_tasks();
@@ -305,6 +365,7 @@ void updateReputation(struct p_task * t) {
 	struct p_answer_worker p_a_w;
 	struct p_worker * toModify;
 	unsigned int cpt;
+	char good_or_bad_answer;
 
 	xbt_dynar_foreach (t->w_answers, cpt, p_a_w) {
 		char name[MAILBOX_SIZE];
@@ -323,8 +384,25 @@ void updateReputation(struct p_task * t) {
 			toModify->totR++;
 			if (p_a_w.answer == t->final_answer) {
 				toModify->totC++;
+				good_or_bad_answer = 1;
 			}
-			updateReputation_Sonnek (toModify);
+			else {
+				good_or_bad_answer = -1;
+			}
+			if (reputation_strategy == SYMMETRICAL) {
+				updateReputation_Symmetrical(toModify, good_or_bad_answer);
+				
+			}
+			else if (reputation_strategy == ASYMMETRICAL) {
+				updateReputation_Symmetrical(toModify, good_or_bad_answer);
+			}
+			else if (reputation_strategy == BOINC) {
+				updateReputation_BOINC(toModify);
+			}
+			else {
+				// the reputation_strategy chosen is the reputation used in Sonnek
+				updateReputation_Sonnek(toModify);
+			}
 			printf("réputation ici %d\n", toModify->reputation);	
 		}
 	}
@@ -336,6 +414,9 @@ void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_nam
 	struct p_answer_worker w_a;
 	struct p_answer_worker * toModify = NULL;
 	struct p_answer_worker * toAdd = (struct p_answer_worker *) malloc(sizeof(struct p_answer_worker));
+	struct p_worker * w;
+	
+	w = give_worker_active_groups(worker_name);
 
 	xbt_dynar_foreach(*w_answers, cpt, w_a) {
  		if (w_a.answer == answer) {	
@@ -346,33 +427,200 @@ void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_nam
 		// the answer returned by the worker hasn't been returned for that request, we create it
 		toAdd->answer = answer;
 		toAdd->worker_names = xbt_dynar_new(sizeof(char[MAILBOX_SIZE]), NULL);
+		toAdd->worker_reputations = xbt_dynar_new(sizeof(unsigned char), NULL);
 		xbt_dynar_push(toAdd->worker_names, worker_name);
+		xbt_dynar_push(toAdd->worker_reputations, &(w->reputation));
 		xbt_dynar_push(p_t->w_answers, toAdd);
 	}
 	else {
 		// the answer returned by the worker has been already returned by other(s) worker(s), we just add the name of the worker to the list of workers having returned this answer
 		xbt_dynar_push(toModify->worker_names, worker_name);
+		xbt_dynar_push(toModify->worker_reputations, &(w->reputation));
 	}
 }
 
 
-void compute_majoritary_answer(struct p_task * p_t, unsigned long int * majoritary_answer, int * nb_majoritary_answer,int * nb_obtained_majoritary_answer) {
+double valueCond2 (struct p_answer_worker * res, struct p_task * p_t) {
+	double Psc = 1.0;
+	double tmp = 1.0;
+	unsigned int cpt;
+	struct p_answer_worker p;
+	unsigned int nb;
+	unsigned char reputation;	
+
+	xbt_dynar_foreach(p_t->w_answers, cpt, p) {
+		
+		if (res == xbt_dynar_get_ptr(p_t->w_answers, cpt)) {
+			xbt_dynar_foreach(p.worker_reputations, nb, reputation) {
+				Psc = Psc * ((double)reputation/100.0);
+				tmp = tmp * (1.0 - ((double)reputation/100.0));
+			}
+		}
+		else {
+			xbt_dynar_foreach(p.worker_reputations, nb, reputation) {
+				Psc = Psc * (1.0 - ((double)reputation/100.0));
+			} 
+		}
+	}	
+	return (Psc / (tmp + Psc));
+}
+
+
+// this function permits to know the number of answers that have the same number of workers (nb_majority_answer)
+void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, double * min_value) {
 	unsigned int cpt;
 	struct p_answer_worker w_a;
+	struct p_answer_worker * res;
 	int max = 0;
+	double min = 1000.0;
+	double tmp;
 
 	xbt_dynar_foreach(p_t->w_answers, cpt, w_a) {
- 		if (xbt_dynar_length(w_a.worker_names) > max) {	
-			max = xbt_dynar_length(w_a.worker_names);
-			*majoritary_answer = w_a.answer;
-			*nb_majoritary_answer = 1;
+		if ((simulator == SONNEK) || ((simulator == ARANTES) && (group_formation_strategy == FIXED_FIT))) {
+			// if the simulator is SONNEK we considere the number of workers to konw the majoritary answer
+	 		if (xbt_dynar_length(w_a.worker_names) > max) {	
+				max = xbt_dynar_length(w_a.worker_names);
+				*nb_majoritary_answer = 1;
+				res = xbt_dynar_get_ptr(p_t->w_answers, cpt);
+			}
+			else if (xbt_dynar_length(w_a.worker_names) == max) {
+				*nb_majoritary_answer = *nb_majoritary_answer + 1;
+			}
 		}
-		else if (xbt_dynar_length(w_a.worker_names) == max) {
-			*nb_majoritary_answer = *nb_majoritary_answer + 1;
+		else {
+			// if the simulator is ARANTES we considere the minimum treshold obtained by the group
+			if ((tmp = valueCond2(xbt_dynar_get_ptr(p_t->w_answers, cpt), p_t)) < min) {
+				min = tmp;
+				*min_value = tmp;
+				res = xbt_dynar_get_ptr(p_t->w_answers, cpt);
+				*nb_majoritary_answer = 1;
+			} 
+			else if (tmp == min) {
+				*nb_majoritary_answer = *nb_majoritary_answer + 1;	
+			}
 		}
 	}
-	*nb_obtained_majoritary_answer = max;	
+	p_t->res = res;
 }	
+
+
+void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process) {
+	if (nb_majoritary_answer == 1 && xbt_dynar_length(n->res->worker_names) > floor((double)n->nb_forwarded/2.0)) {
+		// there is no ambiguity on the final result: the majority doesn't necessarly correspond to the absoulute majority
+		n->final_answer = n->res->answer;
+		// send the answer to the client
+		msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+		MSG_task_send(answer_client, n->client);
+
+		printf("after update prints the active and workers groups\n");
+		groups_print(&active_groups);
+		workers_print();
+		//process = 1;
+	}	
+	else if (nb_majoritary_answer == 1) {
+		n->final_answer = n->res->answer;
+		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+		MSG_task_send(fail, n->client);
+	}				
+	else {
+		// replication of the task on additional nodes
+		// if we use Sonnek, there isn't replication mechanism. We just send an error to the client indicating him the primary fail obtaining an (absolute or qualify) majority in the answers collected
+		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+		MSG_task_send(fail, n->client);
+	}
+	// in case of Sonnek what ever happen, when all the workers have answer the task is processed (because there isn't any addtional replication strategy)
+	*process = 1;
+	// update the reputation of the workers and suppress the processing task
+	updateReputation(n);
+}
+
+
+void replication(struct p_task * n) {
+	n->nb_replication++;
+	if (n->nb_replication == REPLICATION_MAX) {
+		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+		MSG_task_send(fail, n->client);
+	}
+
+	if (group_formation_strategy == FIXED_FIT) {
+		replication_fixed_fit(n);
+	}
+	else {
+		replication_others_fit(n);
+	}
+}
+
+
+void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double min_value) {
+	if (group_formation_strategy == FIXED_FIT) {
+		if (additional_replication_strategy == ITERATIVE_REDUNDANCY) {
+			if ((nb_majoritary_answer == 1) && ((n->nb_forwarded - xbt_dynar_length(n->res->worker_names)) == additional_replication_value_difference)) {
+				n->final_answer = n->res->answer;
+				// send the answer to the client
+				msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+				MSG_task_send(answer_client, n->client);
+
+				printf("after update prints the active and workers groups\n");
+				groups_print(&active_groups);
+				workers_print();
+				*process = 1;
+				updateReputation(n);
+			}
+			else {
+				// replication
+				replication(n);
+			}
+		}
+		else {
+			// additionnal_replication_strategy == PROGRESSIVE_REDUNDANCY
+			if ((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) >= (floor((double)group_formation_fixed_number/2.0) + 1))) {
+				n->final_answer = n->res->answer;
+				// send the answer to the client
+				msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+				MSG_task_send(answer_client, n->client);
+
+				printf("after update prints the active and workers groups\n");
+				groups_print(&active_groups);
+				workers_print();
+				*process = 1;
+				updateReputation(n);
+			}
+			else {
+				replication(n);
+			}
+		}
+	}
+	else if (((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) == n->nb_forwarded)) || (min_value > (1 - group_formation_target_value))) {
+		// there is no ambiguity on the final result
+		n->final_answer = n->res->answer;
+		// send the answer to the client
+		msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+		MSG_task_send(answer_client, n->client);
+
+		printf("after update prints the active and workers groups\n");
+		groups_print(&active_groups);
+		workers_print();
+		*process = 1;
+		updateReputation(n);
+	}
+	else {
+		// replication of the task on additional nodes
+		replication(n);
+	}
+}
+
+
+int inAdditional_replication_tasks (struct p_task * p_t) {
+	xbt_fifo_item_t i;
+	struct p_task * n;
+
+   for(i = xbt_fifo_get_first_item(processing_tasks); ((i) ? (n = (struct p_task *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+		if (n == p_t) {
+			return 1;
+		}
+	}
+	return -1;
+}
 
 
 void treat_answer(msg_task_t t) {
@@ -385,9 +633,8 @@ void treat_answer(msg_task_t t) {
 	xbt_fifo_item_t i;
 	struct p_task * n;
 	char process = -1;
-	unsigned long int majoritary_answer = BAD_ANSWER + 1; // we initialize with a value that answer couldn't have
 	int nb_majoritary_answer = 0;
-	int nb_obtained_majoritary_answer = 0;
+	double min_value;
 
 	w_t = (struct w_task *)MSG_task_get_data(t);
 
@@ -404,38 +651,20 @@ void treat_answer(msg_task_t t) {
 			else {
 				n->nb_correct_answers++;
 			}
-			if ((n->nb_answers_received + n->nb_crashed) == n->nb_forwarded) {
-				/* *******************************************************************************
+			if (((n->nb_answers_received + n->nb_crashed) == n->nb_forwarded) && (inAdditional_replication_tasks(n) == 1)) {
+				n->to_replicate = 0;
+				xbt_dynar_free(&(n->additional_reputations));
+				n->additional_reputations = xbt_dynar_new(sizeof(int), NULL);
 
-
-				TO REPLACE BY A FUNCTION SAYING IF WE CAN AUTORISED THE ANSWER (FOR EXAMPLE AFTER 
-				REPLICATION WE DON'T WAIT TO HAVE ALL WORKERS ANSWERING THE SAME ANSWER (IT IS 
-				IMPOSSIBLE) SO WE NEED TO HAVE A NEW STRATEGY SAYING WHEN AN ANSWER IS CORRECT
-
-
-				********************************************************************************* */
-				compute_majoritary_answer(n, &majoritary_answer, &nb_majoritary_answer, &nb_obtained_majoritary_answer); 			
+				compute_majoritary_answer(n, &nb_majoritary_answer, &min_value); 		
 
 				printf("receive all the answers for %s %s\n", n->client, n->task_name);
-				if (nb_majoritary_answer == 1) {
-					// there is no ambiguity on the final result: the majority doesn't necessarly correspond to the absoulute majority
-
-					n->final_answer = majoritary_answer;
-					// send the answer to the client
-					msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-					MSG_task_send(answer_client, n->client);
-
-					// update the reputation of the workers and suppress the processing task
-					updateReputation(n);
-					printf("after update prints the active and workers groups\n");
-					groups_print(&active_groups);
-					workers_print();
-					process = 1;
-				}					
+				if (simulator == SONNEK) {
+					send_answer_Sonnek(n, nb_majoritary_answer, &process);
+				}
 				else {
-					// replication of the task on additional nodes and  
-
-
+					// we simulate the algorithm used in ARANTES
+					send_answer_Arantes(n, nb_majoritary_answer, &process, min_value);
 				}
 			}
 			break;
@@ -488,6 +717,26 @@ void treat_answer(msg_task_t t) {
 }
 
 
+void try_to_treat_additional_replication() {
+	int i;
+	int size = xbt_fifo_size(additional_replication_tasks);
+
+	for (i = 0; i < size; i++) {
+		if ((xbt_fifo_size(inactive_groups) != 0) || (xbt_dynar_length(workers) >= 0)) {
+			if (group_formation_strategy == FIXED_FIT) {
+				replication_fixed_fit((struct p_task *)fifo_supress_head(additional_replication_tasks));
+			}
+			else {
+				replication_others_fit((struct p_task *)fifo_supress_head(additional_replication_tasks));
+			}
+		}
+		else {
+			break;
+		}
+	}
+}
+
+
 int primary (int argc, char * argv[]) {
 	unsigned long int id;
 	int nb_clients;
@@ -504,6 +753,7 @@ int primary (int argc, char * argv[]) {
 	processing_tasks = xbt_fifo_new();
 	active_groups = xbt_fifo_new();
 	inactive_groups = xbt_fifo_new();
+	additional_replication_tasks = xbt_fifo_new();
 
 	id = atoi(argv[1]);
 	sprintf(myMailbox, "primary-%ld", id);
@@ -549,6 +799,7 @@ int primary (int argc, char * argv[]) {
 			workers_print();
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
+			try_to_treat_additional_replication();
 			try_to_treat_tasks();
 
 			printf("end of try_to_treat_tasks\n");
@@ -559,7 +810,7 @@ int primary (int argc, char * argv[]) {
 			printf("content of the active groups\n");
 			groups_print(&active_groups);
 
-			/*if (xbt_dynar_length(workers) >= NB_MIN_GROUP) {
+			/*if (xbt_dynar_length(workers) >= group_formation_min_number) {
 				printf("%s: formation of inactive groups\n", myMailbox);
 				formGroup_fixed_fit();
 				printf("content of the inactive groups\n");
@@ -575,6 +826,7 @@ int primary (int argc, char * argv[]) {
 			// the primary receive an answer to a request from a worker
 			printf("%s: I receive an answer\n", myMailbox);
 			treat_answer(task_todo);
+			try_to_treat_additional_replication();
 			try_to_treat_tasks();
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;

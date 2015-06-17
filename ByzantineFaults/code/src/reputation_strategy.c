@@ -1,5 +1,6 @@
 #include "msg/msg.h"
 #include "reputation_strategy.h"
+#include "simulator.h"
 
 
 void updateReputation_Sonnek (struct p_worker * worker) {
@@ -8,15 +9,15 @@ void updateReputation_Sonnek (struct p_worker * worker) {
 }
 
 
-void updateReputation_Symmetrical (struct p_worker * worker, double x, char good_or_bad_answer) {
+void updateReputation_Symmetrical (struct p_worker * worker, char good_or_bad_answer) {
 	if (good_or_bad_answer == 1) {
-		worker->reputation = worker->reputation + (int)((double)worker->reputation * x);
+		worker->reputation = worker->reputation + (int)((double)worker->reputation * reputation_x);
 		if (worker->reputation > MAX_REPUTATION) {
 			worker->reputation = MAX_REPUTATION;
 		}
 	}
 	else {
-		worker->reputation = worker->reputation - (int)((double)worker->reputation * x);
+		worker->reputation = worker->reputation - (int)((double)worker->reputation * reputation_x);
 		if (worker->reputation < MIN_REPUTATION) {
 			worker->reputation = MIN_REPUTATION;
 		}
@@ -24,15 +25,15 @@ void updateReputation_Symmetrical (struct p_worker * worker, double x, char good
 }
 
 
-void updateReputation_Asymmetrical (struct p_worker * worker, double x, double y, char good_or_bad_answer) {
+void updateReputation_Asymmetrical (struct p_worker * worker, char good_or_bad_answer) {
 	if (good_or_bad_answer == 1) {
-		worker->reputation = worker->reputation + (int)((double)worker->reputation * x);
+		worker->reputation = worker->reputation + (int)((double)worker->reputation * reputation_x);
 		if (worker->reputation > MAX_REPUTATION) {
 			worker->reputation = MAX_REPUTATION;
 		}
 	}
 	else {
-		worker->reputation = worker->reputation - (int)((double)worker->reputation * y);
+		worker->reputation = worker->reputation - (int)((double)worker->reputation * reputation_y);
 		if (worker->reputation < MIN_REPUTATION) {
 			worker->reputation = MIN_REPUTATION;
 		}

@@ -2,6 +2,7 @@
 #define _WORKER_H
 
 #include "task.h"
+#include "msg/msg.h"
 
 // structure of information about tasks processing that a worker keep in memory (and transmit to the primary as answer)
 struct w_task {

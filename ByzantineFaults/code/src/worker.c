@@ -98,6 +98,8 @@ int worker (int argc, char * argv[]) {
 			task = NULL;
 		}
 	}	
+	
+	free(me);
 
 	return 0;
 }

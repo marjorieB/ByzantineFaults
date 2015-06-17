@@ -1,7 +1,0 @@
-#ifndef REPLICATION_STRATEGY_H
-#define REPLICATION_STRATEGY_H
-
-
-
-
-#endif

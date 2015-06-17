@@ -1,12 +1,7 @@
 #ifndef _GROUP_FORMATION_STRATEGY_H
 #define _GROUP_FORMATION_STRATEGY_H
 
-
-#define NB_FIXED_GROUP 2
-#define NB_MIN_GROUP 2
-#define NB_MAX_GROUP 10
-#define FIRST_ITEM 1
-
+#define FIRST_ITEM 0
 
 long int factorial (int n);
 
@@ -18,12 +13,28 @@ double compute_LOC(xbt_dynar_t * w);
 
 void formGroup_fixed_fit(void);
 
-void formGroup_first_fit(double target_LOC);
+void formGroup_first_fit(void);
 
-void formGroup_tight_fit(void);
+void formGroup_first_fit_Sonnek(void);
 
-void formGroup_random_fit(double target_LOC);
+void binary_search_pairs(xbt_dynar_t * w, double * LOC, int index);
 
-void formGroup_Arantes(void);
+void formGroup_tight_fit_Sonnek(void);
+
+void formGroup_random_fit(void);
+
+void formGroup_random_fit_Sonnek(void);
+
+double compute_Arantes_PC(xbt_dynar_t * w);
+
+double compute_Arantes_PB(xbt_dynar_t * w);
+
+void formGroup_first_fit_Arantes(void);
+
+void formGroup_tight_fit_Arantes(void);
+
+void binary_search_one(xbt_dynar_t * w, double * res, int index);
+
+void formGroup_random_fit_Arantes(void);
 
 #endif

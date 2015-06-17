@@ -26,6 +26,9 @@ void receive_answer(char * myMailbox) {
 	if (!strcmp(MSG_task_get_name(answer), "answer")) {
    	printf("%s: I receive the answer to %s\n", myMailbox, (char *)MSG_task_get_data(answer));
 	}
+	else if (!strcmp(MSG_task_get_name(answer), "fail")) {
+		printf("%s: the primary failed having a majority of answer from the workers\n", myMailbox);
+	}
 	else {
 		printf("%s, message incorrect\n", myMailbox);
 	}

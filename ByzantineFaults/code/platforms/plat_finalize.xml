@@ -9,7 +9,7 @@
 		<host id="client" power="100000000"/>
 		<host id="client1" power="100000000"/>
 		<host id="primary" power="100000000"/>
-		<host id="worker" power="10000000" state_file="/home/marjo/stage/logiciel/Simgrid_et_co/projet/platforms/worker_availability.trace"/>
+		<host id="worker" power="10000000" state_file="/home/marjo/stage/logiciel/Simgrid_et_co/projet/platforms/worker_availability.trace"/> 
 		<host id="worker1" power="10000000"/>
 
 		<link id="127" bandwidth="3.430125MBps" latency="536.941us"/>
