@@ -82,15 +82,12 @@ double compute_LOC(xbt_dynar_t * w) {
 void formGroup_fixed_fit() {
 	int i;
 	int nb_rand;
-	int until;
+	int until = group_formation_fixed_number;
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
 	srand(time(NULL));
 
-	if (additional_replication_strategy == ITERATIVE_REDUNDANCY) {
-		until = group_formation_fixed_number;
-	}
-	else {
+	if ((simulator == ARANTES) && (additional_replication_strategy == PROGRESSIVE_REDUNDANCY)) {
 		until = floor((double)group_formation_fixed_number / 2.0) + 1;
 	}
 
@@ -103,6 +100,7 @@ void formGroup_fixed_fit() {
 			nb_rand = rand() % (xbt_dynar_length(workers));
 			//printf("value nb_rand=%d\n", nb_rand);
 			xbt_dynar_remove_at(workers, nb_rand, (void *)toAdd);
+				
 			//printf("remove toAdd.name= %s\ntoAdd.reputation=%d\n", toAdd->mailbox, toAdd->reputation);
 			xbt_dynar_push(*w, toAdd);
 		}

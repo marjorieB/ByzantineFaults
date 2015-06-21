@@ -4,11 +4,14 @@ SET(CMAKE_BUILD_TYPE Debug)
 
 SET(SIMGRID_LIB /home/marjo/stage/logiciel/Simgrid_et_co/simgrid/lib CACHE PATH "SimGrid library")
 SET(MY_INCLUDE /home/marjo/stage/logiciel/Simgrid_et_co/projet/include CACHE PATH "my_project include")
+SET(MYSQL_LIB /usr/lib/ CACHE PATH "mysql_lib")
+SET(INCLUDE_MYSQL /usr/include/ CACHE PATH "mysql_include")
 SET(SIMGRID_INCLUDE /home/marjo/stage/logiciel/Simgrid_et_co/simgrid/include CACHE PATH "SimGrid include")
+
 OPTION(WARNINGS_ARE_ERRORS "Warning become errors during compilation." ON)
 
-LINK_DIRECTORIES(${SIMGRID_LIB})
-INCLUDE_DIRECTORIES(${SIMGRID_INCLUDE} ${MY_INCLUDE})
+LINK_DIRECTORIES(${SIMGRID_LIB} ${MYSQL_LIB})
+INCLUDE_DIRECTORIES(${SIMGRID_INCLUDE} ${MY_INCLUDE} ${INCLUDE_MYSQL})
 
 SET(MY_BOINC_SRC
 	src/simulator.c
@@ -21,8 +24,9 @@ SET(MY_BOINC_SRC
 )
 
 ADD_EXECUTABLE(my_boinc ${MY_BOINC_SRC})
-TARGET_LINK_LIBRARIES(my_boinc m)
-TARGET_LINK_LIBRARIES(my_boinc simgrid)
+TARGET_LINK_LIBRARIES(my_boinc mysqlclient)
+TARGET_LINK_LIBRARIES(my_boinc m) #to include the math library
+TARGET_LINK_LIBRARIES(my_boinc simgrid) #to include simgrid
 
 #INSTALL(PROGRAMS ${CMAKE_BINARY_DIR}/my_boinc
         #DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

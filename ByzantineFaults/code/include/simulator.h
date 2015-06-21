@@ -1,6 +1,9 @@
 #ifndef _SIMULATOR_H
 #define _SIMULATOR_H
 
+
+#define FILE_NAME_SIZE 256
+
 // variables for initialised the global variable named simulator
 #define SONNEK 1
 #define ARANTES 2
@@ -39,9 +42,9 @@ int group_formation_max_number;
 // this global variable indicate the strategy used to update the reputation
 int reputation_strategy;
 // value used to increase the reputation in case of symmetrical or asymmetrical strategy
-int reputation_x;
+double reputation_x;
 // value used to decrease the reputation in case of asymmetrical strategy
-int reputation_y;
+double reputation_y;
 
 
 // this global variable indicate the strategy used to do additional replication on nodes
@@ -51,5 +54,9 @@ int additional_replication_value_difference;
 
 // this global varibale indicate the maximum number of workers we want in the system
 int nb_max_workers;
+
+
+// this global variable permits to know the starting time when the nodes we are using where trace
+double time_start;
 
 #endif

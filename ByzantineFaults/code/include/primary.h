@@ -102,9 +102,17 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 
 int inAdditional_replication_tasks (struct p_task * p_t);
 
-void treat_answer(msg_task_t t);
+void suppress_processing_tasks_and_active_group(xbt_dynar_t * d, struct p_task * n);
+
+void worker_from_active_group_to_workers(char * name, struct p_task * n, int process);
+
+void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process);
+
+void treat_answer(msg_task_t t, int crash);
 
 void try_to_treat_additional_replication(void);
+
+void treat_crash(msg_task_t task_todo);
 
 int primary (int argc, char * argv[]);
 

@@ -11,12 +11,14 @@ void updateReputation_Sonnek (struct p_worker * worker) {
 
 void updateReputation_Symmetrical (struct p_worker * worker, char good_or_bad_answer) {
 	if (good_or_bad_answer == 1) {
+		printf("%s have is reputation increased to %d\n", worker->mailbox, worker->reputation + (int)((double)worker->reputation * reputation_x)); 
 		worker->reputation = worker->reputation + (int)((double)worker->reputation * reputation_x);
 		if (worker->reputation > MAX_REPUTATION) {
 			worker->reputation = MAX_REPUTATION;
 		}
 	}
 	else {
+		printf("%s have is reputation decreased to %d\n", worker->mailbox, worker->reputation - (int)((double)worker->reputation * reputation_x)); 
 		worker->reputation = worker->reputation - (int)((double)worker->reputation * reputation_x);
 		if (worker->reputation < MIN_REPUTATION) {
 			worker->reputation = MIN_REPUTATION;
