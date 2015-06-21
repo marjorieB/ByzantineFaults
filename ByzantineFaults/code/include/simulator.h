@@ -32,7 +32,7 @@ int group_formation_strategy;
 // value used to indicate the number of workers wanted in case of a fixed-fit strategy
 int group_formation_fixed_number;
 // value used as the target_LOC or treshold (this depend if we are in a Sonnek or Arantes simulation) for the first-fit, random-fit and tight-fit strategies
-int group_formation_target_value;
+double group_formation_target_value;
 // value used to know the minimum number of workers we want in groups of workers in case of first-fit, random-fit and tight-fit strategies
 int group_formation_min_number;
 // value used to know the maximum number of workers we want in groups of workers in case of first-fit, random-fit and tight-fit strategies

@@ -374,7 +374,7 @@ void updateReputation(struct p_task * t) {
 				updateReputation_Symmetrical(toModify, good_or_bad_answer);
 			}
 			else if (reputation_strategy == ASYMMETRICAL) {
-				updateReputation_Symmetrical(toModify, good_or_bad_answer);
+				updateReputation_Asymmetrical(toModify, good_or_bad_answer);
 			}
 			else if (reputation_strategy == BOINC) {
 				updateReputation_BOINC(toModify);

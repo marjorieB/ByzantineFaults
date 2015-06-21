@@ -114,17 +114,17 @@ int main (int argc, char * argv[]) {
 
 	if ((group_formation_strategy == FIRST_FIT) || (group_formation_strategy == TIGHT_FIT) || (group_formation_strategy == RANDOM_FIT)) {
 		index++;
-		if ((group_formation_target_value = atoi(argv[index])) == 0) {
+		if ((group_formation_target_value = atof(argv[index])) == 0) {
 			printf("just after parameter FIRST_FIT, TIGHT_FIT or RANDOM_FIT you need to precise the target value you want each groups achieve\n");
 			exit(1);
 		}
 		index++;
-		if ((group_formation_min_number = atoi(argv[index])) == 0) {
+		if ((group_formation_min_number = atof(argv[index])) == 0) {
 			printf("the parameter %d must be the minimum number of workers you want in each group\n", index);
 			exit(1);
 		}
 		index++;
-		if ((group_formation_max_number = atoi(argv[index])) == 0) {
+		if ((group_formation_max_number = atof(argv[index])) == 0) {
 			printf("the parameter %d must be the maximum number of workers you want in each group\n", index);
 			exit(1);
 		}

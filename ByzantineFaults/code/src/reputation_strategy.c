@@ -5,7 +5,6 @@
 
 void updateReputation_Sonnek (struct p_worker * worker) {
 	worker->reputation = (int)((((double)worker->totC + 1.0) / ((double)worker->totR + 2.0)) * 100.0);
-	printf("new value of the reputation of worker %s: %d\n", worker->mailbox, (int)((((double)worker->totC + 1.0) / ((double)worker->totR + 2.0)) * 100.0));
 }
 
 
@@ -44,5 +43,10 @@ void updateReputation_Asymmetrical (struct p_worker * worker, char good_or_bad_a
 
 
 void updateReputation_BOINC (struct p_worker * worker) {
-	worker->reputation = (int) ((1.0 - (double) ((((double)worker->totR - (double)worker->totC) / (double)(worker->totR)))) * 100);
+	if (worker->totR == 0) {
+		worker->reputation = 100;
+	}
+	else {
+		worker->reputation = (int) ((1.0 - (double) ((((double)worker->totR - (double)worker->totC) / (double)(worker->totR)))) * 100);
+	}
 }
