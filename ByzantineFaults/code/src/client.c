@@ -7,10 +7,20 @@
 void send_task(int i, char * mailbox, char * myMailbox) {
 	msg_task_t task = NULL;
 	char task_name[TASK_NAME_SIZE];
+	//struct clientDataTask data;
 
 	printf("%s: I send a request to %s\n", myMailbox, mailbox);
 
 	sprintf(task_name, "task-%d", i);
+	//strcpy(data.mailbox, myMailbox); 
+
+	/*if (i == 0) {
+		data.targetLOC = 0.2;	
+	}
+	else {
+		data.targetLOC = 0.65;
+	}*/
+	//task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, &data);
 	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, myMailbox);
 	MSG_task_send(task, mailbox);
 }
@@ -61,7 +71,7 @@ int client (int argc, char * argv[]) {
 	// the name of the primary is known by the client
 	strcpy(primary, argv[2]);
 
-	for (i = 1; i <= nb_requests; i++) {
+	for (i = 0; i < nb_requests; i++) {
 		//send a request to the primary
 		send_task(i, primary, myMailbox);		
 

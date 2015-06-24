@@ -3,6 +3,7 @@
 #include "worker.h"
 #include "client.h"
 #include "simulator.h"
+#include <math.h>
 #include <mysql.h>
 
 
@@ -114,11 +115,11 @@ int main (int argc, char * argv[]) {
 
 	if ((group_formation_strategy == FIRST_FIT) || (group_formation_strategy == TIGHT_FIT) || (group_formation_strategy == RANDOM_FIT)) {
 		index++;
-		if ((group_formation_target_value = atof(argv[index])) == 0) {
+		/*if ((group_formation_target_value = atof(argv[index])) == 0) {
 			printf("just after parameter FIRST_FIT, TIGHT_FIT or RANDOM_FIT you need to precise the target value you want each groups achieve\n");
 			exit(1);
 		}
-		index++;
+		index++;*/
 		if ((group_formation_min_number = atof(argv[index])) == 0) {
 			printf("the parameter %d must be the minimum number of workers you want in each group\n", index);
 			exit(1);
@@ -143,6 +144,7 @@ int main (int argc, char * argv[]) {
 		}
 		else if (!strcmp(argv[index], "PROGRESSIVE_REDUNDANCY")) {
 			additional_replication_strategy = PROGRESSIVE_REDUNDANCY;
+			group_formation_min_number = floor((double)group_formation_fixed_number / 2.0) + 1;
 		}
 		else {
 			printf("the parameter %d must have the value ARANTES_REPLICATION, ITERATIVE_REDUNDANCY or PROGRESSIVE_REDUNDANCY\n", index);

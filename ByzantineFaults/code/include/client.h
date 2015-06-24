@@ -3,6 +3,11 @@
 
 #define NB_REQUESTS 1
 
+/*struct clientDataTask {
+	char mailbox[MAILBOX_SIZE];
+	double target_LOC;
+};*/
+
 void send_task(int i, char * mailbox, char * myMailbox);
 
 void receive_answer(char * myMailbox);

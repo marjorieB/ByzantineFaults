@@ -81,8 +81,6 @@ void formGroup_fixed_fit() {
 	int until = group_formation_fixed_number;
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
-	srand(time(NULL));
-
 	if ((simulator == ARANTES) && (additional_replication_strategy == PROGRESSIVE_REDUNDANCY)) {
 		until = floor((double)group_formation_fixed_number / 2.0) + 1;
 	}
@@ -199,7 +197,7 @@ void formGroup_tight_fit_Sonnek() {
 	// we search where are the workers with a reputation above 50
 	xbt_dynar_foreach(workers, cpt, p_w) {
 		if (p_w.reputation < 50) {
-			index = cpt;
+			index = cpt - 1;
 			break;
 		}
 	}
@@ -255,8 +253,6 @@ void formGroup_random_fit_Sonnek() {
 	int nb_rand;
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
-	srand(time(NULL));
-
 	while (xbt_dynar_length(workers) >= group_formation_min_number) {
 		xbt_dynar_t * w = (xbt_dynar_t *)malloc(sizeof(xbt_dynar_t));			
 		*w = xbt_dynar_new(sizeof(struct p_worker), NULL);	
@@ -302,9 +298,11 @@ double compute_Arantes_PC(xbt_dynar_t * w) {
 	struct p_worker p_w;
 	double res = 1.0;
 
+	printf("nombre de workers %ld\n", xbt_dynar_length(*w));
 	xbt_dynar_foreach (*w, cpt, p_w) {
-		res = res * p_w.reputation;
+		res = res * ((double)p_w.reputation / 100.0);
 	}
+	printf("value Arantes_PC %f\n", res);
 	return res;
 }
 
@@ -315,8 +313,9 @@ double compute_Arantes_PB(xbt_dynar_t *w) {
 	double res = 1.0;
 
 	xbt_dynar_foreach(*w, cpt, p_w) {
-		res = res * (1 - p_w.reputation);
+		res = res * (1 - ((double)p_w.reputation / 100.0));
 	}
+	printf("value Arantes_PB %f\n", res);
 	return res;
 }
 
@@ -340,6 +339,7 @@ void formGroup_first_fit_Arantes() {
 				Pc = compute_Arantes_PC(w);
 				Pb = compute_Arantes_PB(w);
 				res = Pb / Pc;
+				printf("value of LOC ARANTES %f\n", res);
 			}
 
 		} while(((res > group_formation_target_value) || (xbt_dynar_length(*w) < group_formation_min_number)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers) != 0));
@@ -350,6 +350,7 @@ void formGroup_first_fit_Arantes() {
 			}
 			else {
 				// we have to put the workers back to the workers list: we have try to create a group but there isn't quiet workers left permitting to have a good threshold
+				printf("there isn't enough workers to have a good treshold\n");
 				int i;
 				long int until = xbt_dynar_length(*w);
 				for (i = 0; i < until; i++) {
@@ -369,8 +370,6 @@ void formGroup_first_fit_Arantes() {
 void formGroup_random_fit_Arantes() {
 	int nb_rand;
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
-
-	srand(time(NULL));
 
 	while (xbt_dynar_length(workers) >= group_formation_min_number) {
 		xbt_dynar_t * w = (xbt_dynar_t *)malloc(sizeof(xbt_dynar_t));			
@@ -424,8 +423,11 @@ void binary_search_one (xbt_dynar_t * w, double * res, int index) {
 		return;
 	}
 	else {	
+		printf("là\n");
 		xbt_dynar_remove_at(workers, index, (void *)toAdd);
+		printf("ici\n");
 		xbt_dynar_push(*w, toAdd);	
+		printf("puis là\n");
 
 		*res = compute_Arantes_PB(w) / compute_Arantes_PC(w);
 		if (*res <= group_formation_target_value) {
@@ -449,7 +451,7 @@ void formGroup_tight_fit_Arantes() {
 	xbt_dynar_sort(workers, compare_reputation_workers);
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
-	int index;
+	int index = xbt_dynar_length(workers) - 1;
 	char stop = 0;
 
 	// we search where are the workers with a reputation above 50

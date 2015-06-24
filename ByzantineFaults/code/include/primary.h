@@ -20,8 +20,10 @@ struct p_task {
 	int nb_correct_answers;
 	int to_replicate; // when the additional replication strategy corresponds to a fixed_fit strategy, we need say how many replicas we need, this variable is used when the task is in the additional_replication_tasks
 	int nb_replication; // number of times the task had been replicated additionally
+	xbt_dynar_t additional_workers; // contain the names of the workers added to compute the task
 	xbt_dynar_t additional_reputations; // contain the reputation of the workers added to compute the task
-	xbt_dynar_t * active_workers; // pointer towards the group of active_workers containing the workers executing the task
+	//xbt_dynar_t * active_workers; // pointer towards the group of active_workers containing the workers executing the task
+	xbt_fifo_item_t active_workers;
 	struct p_answer_worker * res; // current majoritary result
 };
 
@@ -47,8 +49,6 @@ xbt_fifo_t tasks;
 xbt_fifo_t processing_tasks;
 
 xbt_fifo_t active_groups;
-
-xbt_fifo_t inactive_groups;
 
 xbt_fifo_t additional_replication_tasks; // list of structure struct p_task. A processing task will be put in that list when we need to replicate it but we haven't been able to replicate entirely the task because there aren't enough workers able to execute this task
 
@@ -102,7 +102,7 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 
 int inAdditional_replication_tasks (struct p_task * p_t);
 
-void suppress_processing_tasks_and_active_group(xbt_dynar_t * d, struct p_task * n);
+void suppress_processing_tasks_and_active_group(struct p_task * n);
 
 void worker_from_active_group_to_workers(char * name, struct p_task * n, int process);
 

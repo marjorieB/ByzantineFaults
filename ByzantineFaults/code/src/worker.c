@@ -196,12 +196,12 @@ int worker (int argc, char * argv[]) {
 	struct worker * me = (struct worker *) malloc(sizeof(struct worker));
 	char primary[MAILBOX_SIZE];
 	double time_to_wait;
-	
+
 	if (argc != 4) {
 		exit(1);
 	}
 
-	srand(time(NULL) + me->id + MSG_get_clock());
+	srand(me->id + MSG_get_clock());
 
 	// the worker ask to join the system, then wait for an acknowledgement from the primary and then wait for request to treat
 	me->id = atoi(argv[1]);	
