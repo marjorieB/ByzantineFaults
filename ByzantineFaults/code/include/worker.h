@@ -18,7 +18,7 @@ struct w_task {
 struct worker {
 	char primary[MAILBOX_SIZE];
 	unsigned long int id;
-	unsigned char reputation;
+	char reputation;
 };
 
 

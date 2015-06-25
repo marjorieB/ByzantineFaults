@@ -161,12 +161,20 @@ double treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) 
 	double time_to_wait;
 
 	if ((time_to_wait = present(me, MSG_task_get_compute_duration(task))) == 0.0) {	
-		if ((rand() % 100) <= me->reputation) {
+		if (me->reputation == 1) {
 			data_toSend->answer = GOOD_ANSWER;
 		}
-		else {
+		else if (me->reputation == -1) {
 			data_toSend->answer = rand() % BAD_ANSWER;
-		} 
+		}
+		else {
+			if ((rand() % 100) < 50) {
+				data_toSend->answer = rand() % BAD_ANSWER;
+			}
+			else {
+				data_toSend->answer = GOOD_ANSWER;
+			} 
+		}
 		MSG_task_execute(task);	
 	}	
 	
@@ -208,6 +216,17 @@ int worker (int argc, char * argv[]) {
 	sprintf(myMailbox, "worker-%ld", me->id);
 	strcpy(primary, argv[2]);
 	me->reputation = atoi(argv[3]);
+
+
+	if (me->reputation == 0) {
+		printf("%s: I am an average node\n", myMailbox);
+	}
+	else if (me->reputation == -1) {
+		printf("%s: I am a byzantine node\n", myMailbox);
+	}
+	else {
+		printf("%s: I am a reliable node\n", myMailbox);
+	}
 
 
 	// wait the time indicated in the trace to enter the system	

@@ -1,27 +1,37 @@
 #include "msg/msg.h"
 #include "task.h"
 #include "client.h"
+#include "simulator.h"
 #include <time.h>
 
 // this function permit to send to the node "mailbox" the task number i
 void send_task(int i, char * mailbox, char * myMailbox) {
 	msg_task_t task = NULL;
 	char task_name[TASK_NAME_SIZE];
-	//struct clientDataTask data;
+	struct clientDataTask * data = (struct clientDataTask *) malloc(sizeof(struct clientDataTask));
 
 	printf("%s: I send a request to %s\n", myMailbox, mailbox);
 
 	sprintf(task_name, "task-%d", i);
-	//strcpy(data.mailbox, myMailbox); 
+	strcpy(data->mailbox, myMailbox); 
 
-	/*if (i == 0) {
-		data.targetLOC = 0.2;	
+	if (i == 0) {
+		if (simulator == ARANTES) {
+			data->target_LOC = 1.0;	
+		}
+		else {
+			data->target_LOC = 0.5;	
+		}
 	}
 	else {
-		data.targetLOC = 0.65;
-	}*/
-	//task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, &data);
-	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, myMailbox);
+		if (simulator == ARANTES) {
+			data->target_LOC = 0.1;
+		}
+		else {
+			data->target_LOC = 0.90;
+		}
+	}
+	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, data);
 	MSG_task_send(task, mailbox);
 }
 

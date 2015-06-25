@@ -52,7 +52,16 @@ public class Create_xml_files_centralised {
 					fw.write("\t<process host=\"worker" + i + "\" function=\"worker\">\n");
 					fw.write("\t\t<argument value=\"" + rs.getInt(1) + "\"/> <!-- id of the worker -->\n");
 					fw.write("\t\t<argument value=\"primary-1\"/> <!-- name of the primary -->\n");
-					int reputation = new Random().nextInt(101);
+					int reputation = new Random().nextInt(100);
+					if (reputation < 30) {
+						reputation = -1;
+					}
+					else if (reputation < 50) {
+						reputation = 0;
+					}
+					else {
+						reputation = 1;
+					}
 					
 					fw.write("\t\t<argument value=\"" + reputation + "\"/> <!-- value of the reputation -->\n");
 					fw.write("\t</process>\n");

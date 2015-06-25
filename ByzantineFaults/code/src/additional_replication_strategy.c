@@ -61,11 +61,12 @@ double valueCond2_replication (struct p_task * p_t) {
 	double tmp = 1.0;
 	unsigned int cpt;
 	struct p_answer_worker p;
-	unsigned int nb;
 	unsigned char reputation;	
+	unsigned int i;
 
 
 	xbt_dynar_foreach(p_t->w_answers, cpt, p) {
+		unsigned int nb;
 	
 		if (p_t->res == xbt_dynar_get_ptr(p_t->w_answers, cpt)) {
 			printf("calculating psc of the workers giving the majoritary answer\n");
@@ -81,10 +82,12 @@ double valueCond2_replication (struct p_task * p_t) {
 			} 
 		}
 	}	
-	printf("calculating psc of the workers added supposed to agree with the majoritary answer\n");
-	xbt_dynar_foreach(p_t->additional_reputations, cpt, reputation) {
+	printf("calculating psc of the workers added supposed to agree with the majoritary answer %ld\n", xbt_dynar_length(p_t->additional_reputations));
+	xbt_dynar_foreach(p_t->additional_reputations, i, reputation) {
 		Psc = Psc * ((double)reputation/100.0);
+		//printf("new value of PSC = %f\n", Psc);
 		tmp = tmp * (1.0 - ((double)reputation/100.0));
+		//printf("new value of tmp = %f\n", tmp);
 	}
 
 	printf("value of cond2 : %f\n", (Psc / (tmp + Psc)));
@@ -97,11 +100,9 @@ void replication_fixed_fit (struct p_task * p_t) {
 	int i;
 	int nb;
 
-	workers_print();
+	workers_print(&workers);
 	printf("active group\n");
 	groups_print(&active_groups);
-	printf("inactive_group\n");
-	groups_print(&inactive_groups);
 
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 	xbt_dynar_t array_tmp = xbt_dynar_new(sizeof(struct p_worker), NULL);
@@ -122,26 +123,6 @@ void replication_fixed_fit (struct p_task * p_t) {
 	find_workers_fixed_fit(p_t, &array_tmp, &nb_replications);
 	printf("after searching in the workers groups\n");
 	
-	// we go out of the function find_workers without being able to find workers available to do the the execution of the task
-	// we will search in the inactive_groups of workers if there are some nodes able to execute the task
-	while ((xbt_fifo_size(inactive_groups) > 0) && (nb_replications > 0)) {
-		printf("going to divided an inactive group\n");
-		// we will broke the inactive_group and put the workers in the array named workers
-		xbt_dynar_t * array_w = fifo_supress_head(inactive_groups);
-		nb = xbt_dynar_length(*array_w);			
-
-		printf("after the division\n");
-		for (i = 0; i < nb; i++) {
-			struct p_worker * p_w = (struct p_worker *) malloc(sizeof(struct p_worker));
-			xbt_dynar_pop(*array_w, p_w);
-			xbt_dynar_push(workers, p_w);
-		}
-		workers_print();
-
-		find_workers_fixed_fit(p_t, &array_tmp, &nb_replications);
-	}
-	printf("after searching in the inactive groups of workers\n");
-	
 	if (nb_replications > 0) {
 		// there aren't workers available left to execute this task, we need to put it in a fifo with some information about the replications that stay
 		p_t->to_replicate = nb_replications;
@@ -157,7 +138,7 @@ void replication_fixed_fit (struct p_task * p_t) {
 		xbt_dynar_pop(array_tmp, tmp);
 		xbt_dynar_push(workers, tmp);
 	}
-	workers_print();
+	workers_print(&workers);
 }
 
 
@@ -182,9 +163,12 @@ int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
 			MSG_task_send(to_send, tmp->mailbox);
 
-			if (valueCond2_replication(p_t) > (1 - group_formation_target_value)) {
+			if (valueCond2_replication(p_t) > (1 - p_t->targetLOC)) {
+				printf("replication done: 1 - targetLOC = %f\n", 1 - p_t->targetLOC);
 				return 1;
 			}
+
+			printf("1 - targetLOC = %f\n", 1 - p_t->targetLOC);
 		}
 		else {
 			printf("the node has already executed this task\n");
@@ -197,12 +181,15 @@ int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 
 
 double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tmp, int index) {
-	struct p_worker * toAdd = NULL;
+	printf("dans binary_search\n");
+	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 	double ret;
 
 	if (index == FIRST_ITEM) {
 		xbt_dynar_remove_at(workers, index, (void *)toAdd);
+		workers_print(&workers);
 		if (verify (p_t, *toAdd) == -1) {
+			printf("the node %s has already execute the task %s\n", toAdd->mailbox, p_t->task_name);
 			// the node can't be added to execute this task
 			xbt_dynar_push (*array_tmp, toAdd);
 			return -1;
@@ -216,22 +203,25 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
 			MSG_task_send(to_send, toAdd->mailbox);
 
-			return valueCond2_replication (p_t);
+			return valueCond2_replication(p_t);
 		}
 	}
 	else {	
 		xbt_dynar_remove_at(workers, index, (void *)toAdd);
-
+		workers_print(&workers);
 		if (verify (p_t, *toAdd) == -1) {
+			printf("the node %s has already execute the task %s\n", toAdd->mailbox, p_t->task_name);
 			// the node can't be added to execute this task
 			xbt_dynar_push(*array_tmp, toAdd);
 			return -1;
 		}
 		else {
+			printf("dans le else\n");
 			xbt_dynar_push(p_t->additional_workers, toAdd);
-			xbt_dynar_push(p_t->additional_reputations, &(toAdd->reputation));	
+			xbt_dynar_push(p_t->additional_reputations, &(toAdd->reputation));
+			printf("after the add of the additional_workers\n");	
 
-			if ((ret = valueCond2_replication (p_t)) > (1 - group_formation_target_value)) {
+			if ((ret = valueCond2_replication (p_t)) > (1 - p_t->targetLOC)) {
 				xbt_dynar_push(*(xbt_dynar_t *)xbt_fifo_get_item_content(p_t->active_workers), toAdd);
 				p_t->nb_forwarded++;
 
@@ -241,7 +231,7 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 				return ret;
 			}
 			else {
-				// the added worker doesn't help to achieve the group_formation_target_value. Search for an other worker
+				// the added worker doesn't help to achieve the targetLOC. Search for an other worker
 				xbt_dynar_pop(p_t->additional_workers, NULL);
 				xbt_dynar_pop(p_t->additional_reputations, NULL);
 				xbt_dynar_insert_at(workers, index, toAdd);
@@ -262,6 +252,8 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 	struct p_worker p_w;
 	int index;
 
+	index = xbt_dynar_length(workers) - 1;
+
 	// we search where are the workers with a reputation above 50
 	xbt_dynar_foreach(workers, cpt, p_w) {
 		if (p_w.reputation < 50) {
@@ -270,16 +262,20 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 		}
 	}
 
+	workers_print(&workers);
+	printf("value of index %d\n", index);
+
 	while (index >= FIRST_ITEM) {
 		// at least 1 worker have a reputation above 50, we could do a binary search to add nodes
+		printf("index %d\n", index); 
 		value_res = binary_search_one_replication(p_t, array_tmp, index);
 		// after the binary_search_one_replication it is sure that we have suppressed a worker from the array named workers
 		index--;		
-		if (value_res > (1 - group_formation_target_value)) {
+		if (value_res > (1 - p_t->targetLOC)) {
 			break;
 		}
 	}
-	if (value_res > (1 - group_formation_target_value)) {
+	if (value_res > (1 - p_t->targetLOC)) {
 		return 1;
 	}
 	else {
@@ -306,7 +302,7 @@ int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
 			MSG_task_send(to_send, tmp->mailbox);
 
-			if (valueCond2_replication(p_t) > (1 - group_formation_target_value)) {
+			if (valueCond2_replication(p_t) > (1 - p_t->targetLOC)) {
 				return 1;
 			}
 		}
@@ -335,31 +331,6 @@ void replication_others_fit (struct p_task * p_t) {
 	}
 	else {
 		ret = find_workers_random_fit(p_t, &array_tmp);
-	}
-
-	// we go out of the function find_workers without being able to find workers available to do the execution of the task
-	// we will search in the inactive_groups of workers if there are some nodes able to execute the task
-	while ((xbt_fifo_size(inactive_groups) > 0) && (ret == -1)) {
-		printf("we search an available worker dividing an inactive group\n");
-		// we will broke the inactive_group and put the workers in the array named workers
-		xbt_dynar_t * array_w = fifo_supress_head(inactive_groups);
-		nb = xbt_dynar_length(*array_w);		
-
-		for (i = 0; i < nb; i++) {
-			struct p_worker * p_w = (struct p_worker *) malloc(sizeof(struct p_worker));
-			xbt_dynar_pop(*array_w, p_w);
-			xbt_dynar_push(workers, p_w);
-		}
-
-		if (group_formation_strategy == FIRST_FIT) {
-			ret = find_workers_first_fit(p_t, &array_tmp);
-		}
-		else if (group_formation_strategy == TIGHT_FIT) {
-			ret = find_workers_tight_fit(p_t, &array_tmp);
-		}
-		else {
-			ret = find_workers_random_fit(p_t, &array_tmp);
-		}
 	}
 	
 	if (ret == -1) {

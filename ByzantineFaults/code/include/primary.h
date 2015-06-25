@@ -18,6 +18,7 @@ struct p_task {
 	int nb_answers_received;
 	int nb_false_answers;
 	int nb_correct_answers;
+	double targetLOC;
 	int to_replicate; // when the additional replication strategy corresponds to a fixed_fit strategy, we need say how many replicas we need, this variable is used when the task is in the additional_replication_tasks
 	int nb_replication; // number of times the task had been replicated additionally
 	xbt_dynar_t additional_workers; // contain the names of the workers added to compute the task
@@ -58,7 +59,7 @@ void tasks_print(void);
 
 void processing_tasks_print(void);
 
-void workers_print(void);
+void workers_print(xbt_dynar_t * w);
 
 void groups_print(xbt_fifo_t * f);
 
@@ -75,7 +76,7 @@ xbt_fifo_item_t fifo_supress_item_head(xbt_fifo_t l);
 
 void * fifo_supress_head(xbt_fifo_t l);
 
-void treat_tasks(void);
+void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat);
 
 void try_to_treat_tasks(void);
 
@@ -98,7 +99,7 @@ void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * proc
 
 void replication(struct p_task * n);
 
-void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double min_value);
+void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value);
 
 int inAdditional_replication_tasks (struct p_task * p_t);
 
