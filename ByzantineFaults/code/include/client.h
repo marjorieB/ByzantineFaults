@@ -6,6 +6,7 @@
 struct clientDataTask {
 	char mailbox[MAILBOX_SIZE];
 	double target_LOC;
+	double start_time;
 };
 
 void send_task(int i, char * mailbox, char * myMailbox);

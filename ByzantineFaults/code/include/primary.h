@@ -3,10 +3,12 @@
 
 #include "task.h"
 #include "worker.h"
+#include "simulator.h"
 
 
 // structure of information about tasks (already distributed on workers) processing that a primary keep in memory
 struct p_task {
+	double start;
 	char client[MAILBOX_SIZE]; 
 	char task_name[TASK_NAME_SIZE];
 	xbt_dynar_t w_answers; // array of struct p_answer_worker
@@ -53,6 +55,7 @@ xbt_fifo_t active_groups;
 
 xbt_fifo_t additional_replication_tasks; // list of structure struct p_task. A processing task will be put in that list when we need to replicate it but we haven't been able to replicate entirely the task because there aren't enough workers able to execute this task
 
+int data_csv[MAXIMUM_NUMBER_PRIMARIES];
 
 
 void tasks_print(void);
@@ -95,11 +98,13 @@ double valueCond2 (struct p_answer_worker * res, struct p_task * p_t);
 // this function permits to know the number of answers that have the same number of workers (nb_majority_answer)
 void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, double * min_value);
 
-void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process);
+void writes_data (char * client_name, char * task_name, double time_start_task, char fail, unsigned int long answer, long int number_workers_used, int id);
+
+void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process, int id);
 
 void replication(struct p_task * n);
 
-void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value);
+void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value, int id);
 
 int inAdditional_replication_tasks (struct p_task * p_t);
 
@@ -109,11 +114,13 @@ void worker_from_active_group_to_workers(char * name, struct p_task * n, int pro
 
 void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process);
 
-void treat_answer(msg_task_t t, int crash);
+void treat_answer(msg_task_t t, int crash, int id);
 
 void try_to_treat_additional_replication(void);
 
 void treat_crash(msg_task_t task_todo);
+
+char * compute_name_file (void);
 
 int primary (int argc, char * argv[]);
 

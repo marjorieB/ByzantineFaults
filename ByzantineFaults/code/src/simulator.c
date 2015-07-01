@@ -11,7 +11,6 @@ int main (int argc, char * argv[]) {
 	int index = 1;
 	char dep_file[FILE_NAME_SIZE];
 	char plat_file[FILE_NAME_SIZE];
-	int nb_workers;
 
 	if (argc < 7) {
 		printf("you are using a simulator simulating a probabilistic centralised replication algorithm\n");
@@ -166,7 +165,7 @@ int main (int argc, char * argv[]) {
    }
 
 	
-	sprintf(request, "SELECT MIN(event_start_time) from event_trace limit %d", nb_workers);
+	sprintf(request, "SELECT MIN(event_start_time) from event_trace where event_type = 1 limit %d", nb_workers);
 	if (mysql_query(conn, request)) {
       fprintf(stderr, "%s\n", mysql_error(conn));
       exit(1);

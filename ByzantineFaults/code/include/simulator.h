@@ -3,6 +3,7 @@
 
 
 #define FILE_NAME_SIZE 256
+#define BUFFER_SIZE 256
 
 // variables for initialised the global variable named simulator
 #define SONNEK 1
@@ -22,6 +23,7 @@
 #define ITERATIVE_REDUNDANCY 2
 #define PROGRESSIVE_REDUNDANCY 3
 
+#define MAXIMUM_NUMBER_PRIMARIES 250
 
 // this global variable indicate if we use the strategies used in Sonnek, or in Arantes
 int simulator;
@@ -52,7 +54,7 @@ int additional_replication_strategy;
 int additional_replication_value_difference;
 
 // this global varibale indicate the maximum number of workers we want in the system
-int nb_max_workers;
+int nb_workers;
 
 
 // this global variable permits to know the starting time when the nodes we are using where trace

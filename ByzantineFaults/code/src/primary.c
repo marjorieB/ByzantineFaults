@@ -9,6 +9,10 @@
 #include "client.h"
 #include <string.h>
 #include <math.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 
 void tasks_print() {
@@ -190,6 +194,7 @@ void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat) {
 
 	data = (struct clientDataTask *) MSG_task_get_data(*task_to_treat);
 	printf("name of the client %s\n", data->mailbox);
+	t->start = data->start_time;
 	strcpy(t->client, data->mailbox);
 	t->targetLOC = data->target_LOC;
 	strcpy(t->task_name, MSG_task_get_name(*task_to_treat));
@@ -455,11 +460,38 @@ void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, 
 }	
 
 
-void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process) {
+void writes_data (char * client_name, char * task_name, double time_start_task, char fail, unsigned int long answer, long int number_workers_used, int id) {
+	char toWrite[BUFFER_SIZE];
+	char separator = ';';
+
+	write(data_csv[id], client_name, sizeof(char) * strlen(client_name));
+	write(data_csv[id], &separator, sizeof(char));
+	write(data_csv[id], task_name, sizeof(char) * strlen(task_name));
+	write(data_csv[id], &separator, sizeof(char));
+	
+	sprintf(toWrite, "%f;", time_start_task);
+	write(data_csv[id], toWrite, sizeof(char) * strlen(toWrite));
+
+	sprintf(toWrite, "%f;", MSG_get_clock());
+	write(data_csv[id], toWrite, sizeof(char) * strlen(toWrite));
+
+	sprintf(toWrite, "%d;", fail);
+	write(data_csv[id], toWrite, sizeof(char) * strlen(toWrite));
+
+	sprintf(toWrite, "%lu;", answer);
+	write(data_csv[id], toWrite, sizeof(char) * strlen(toWrite));
+
+	sprintf(toWrite, "%ld;\n", number_workers_used);
+	write(data_csv[id], toWrite, sizeof(char) * strlen(toWrite));
+}
+
+
+void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process, int id) {
 	if (nb_majoritary_answer == 1 && xbt_dynar_length(n->res->worker_names) > floor((double)n->nb_forwarded/2.0)) {
 		printf("send the answer %ld to client %s\n", n->res->answer, n->client);
 		// there is no ambiguity on the final result: the majority doesn't necessarly correspond to the absolute majority
 		n->final_answer = n->res->answer;
+		writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
 		// send the answer to the client
 		msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 		MSG_task_send(answer_client, n->client);
@@ -468,11 +500,13 @@ void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * proc
 	}	
 	else if (nb_majoritary_answer == 1) {
 		n->final_answer = n->res->answer;
+		writes_data(n->client, n->task_name, n->start, 0, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
 		printf("send fail to client %s\n", n->client);
 		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 		MSG_task_send(fail, n->client);
 	}				
 	else {
+		writes_data(n->client, n->task_name, n->start, 1, 0, xbt_dynar_length(n->res->worker_names), id);
 		// replication of the task on additional nodes
 		// if we use Sonnek, there isn't replication mechanism. We just send an error to the client indicating him the primary fail obtaining an (absolute or qualify) majority in the answers collected
 		printf("send fail to client %s\n", n->client);
@@ -505,12 +539,13 @@ void replication(struct p_task * n) {
 }
 
 
-void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value) {
+void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value, int id) {
 	if (group_formation_strategy == FIXED_FIT) {
 		if (additional_replication_strategy == ITERATIVE_REDUNDANCY) {
 			printf("value of nb_majoritary_answer=%d value of res =%lu, n->nb_forwarded=%d, n->res->worker_names = %ld\n", nb_majoritary_answer, n->res->answer, n->nb_forwarded, xbt_dynar_length(n->res->worker_names));  
-			if ((nb_majoritary_answer == 1) && ((xbt_dynar_length(n->res->worker_names) - (n->nb_forwarded - xbt_dynar_length(n->res->worker_names))) == additional_replication_value_difference)) {
+			if ((nb_majoritary_answer == 1) && ((xbt_dynar_length(n->res->worker_names) - (n->nb_forwarded - xbt_dynar_length(n->res->worker_names))) >= additional_replication_value_difference)) {
 				n->final_answer = n->res->answer;
+				writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
 				printf("final answer = %ld\n", n->res->answer);
 				// send the answer to the client
 				msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
@@ -530,6 +565,7 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 			// additionnal_replication_strategy == PROGRESSIVE_REDUNDANCY
 			if ((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) >= (floor((double)group_formation_fixed_number/2.0) + 1))) {
 				n->final_answer = n->res->answer;
+				writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
 				// send the answer to the client
 				msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 				MSG_task_send(answer_client, n->client);
@@ -545,6 +581,7 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 	else if (((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) == n->nb_forwarded)) || ((max_value > (1.0 - n->targetLOC)) && (xbt_dynar_length(n->res->worker_names) > 1))) {
 		// there is no ambiguity on the final result
 		n->final_answer = n->res->answer;
+		writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
 		printf("final answer = %ld\n", n->res->answer);
 		// send the answer to the client
 		msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
@@ -555,7 +592,6 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 	}
 	else {
 		// replication of the task on additional nodes
-		printf("hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee  min value = %f, 1- n->targetLOC = %f, taille %ld\n", max_value, 1.0 - n->targetLOC, xbt_dynar_length(n->res->worker_names));
 		unsigned int nb;
 		char name[256];
 		xbt_dynar_foreach(n->res->worker_names, nb, name) {
@@ -683,7 +719,7 @@ void worker_from_active_group_to_suppression(char * name, struct p_task * n, int
 }
 
 
-void treat_answer(msg_task_t t, int crash) {
+void treat_answer(msg_task_t t, int crash, int id) {
 	// update the answer of the worker
 	// check if all workers give the answer: if yes, look up for the majority solution
 	// if all workers answer the same way, give the answer to the client and update the reputation, and put all the workers on the workers dynamic array
@@ -729,11 +765,11 @@ void treat_answer(msg_task_t t, int crash) {
 
 				printf("receive all the answers for %s %s\n", n->client, n->task_name);
 				if (simulator == SONNEK) {
-					send_answer_Sonnek(n, nb_majoritary_answer, &process);
+					send_answer_Sonnek(n, nb_majoritary_answer, &process, id);
 				}
 				else {
 					// we simulate the algorithm used in ARANTES
-					send_answer_Arantes(n, nb_majoritary_answer, &process, max_value);
+					send_answer_Arantes(n, nb_majoritary_answer, &process, max_value, id);
 				}
 			}
 			break;
@@ -770,12 +806,68 @@ void try_to_treat_additional_replication() {
 }
 
 
+char * compute_name_file (int id) {
+	char * ret = (char *) malloc(sizeof(char) * FILE_NAME_SIZE);
+
+	sprintf(ret, "../files_res/primary_%d_res_%d_workers", id, nb_workers);
+
+	if (simulator == ARANTES) {
+		strcat(ret, "_arantes");
+	}
+	else {
+		strcat(ret, "_sonnek");
+	}
+
+	if (reputation_strategy == SYMMETRICAL) {
+		strcat(ret, "_symmetrical");
+	}
+	else if (reputation_strategy == ASYMMETRICAL) {
+		strcat(ret, "_asymmetrical");
+	}
+	else if (reputation_strategy == BOINC) {
+		strcat(ret, "_boinc");
+	}
+	else {
+		strcat(ret, "_sonnek_reputation");
+	}
+	
+	if (group_formation_strategy == FIXED_FIT) {
+		strcat(ret, "_fixed_fit");
+	}
+	else if (group_formation_strategy == FIRST_FIT) {
+		strcat(ret, "_first_fit");
+	}
+	else if (group_formation_strategy == TIGHT_FIT) {
+		strcat(ret, "_tight_fit");
+	}
+	else {
+		strcat(ret, "_random_fit");
+	}
+
+	if (simulator == ARANTES) {
+		if (additional_replication_strategy == PROGRESSIVE_REDUNDANCY) {
+			strcat(ret, "_progressive_redundancy");
+		}
+		else if (additional_replication_strategy == ITERATIVE_REDUNDANCY) {
+			strcat(ret, "_iterative_redundancy");
+		}
+		else {
+			strcat(ret, "_arantes_replication");
+		}
+	}
+
+	strcat(ret, ".csv");
+	return ret;
+}
+
 int primary (int argc, char * argv[]) {
 	unsigned long int id;
 	int nb_clients;
 	char myMailbox[MAILBOX_SIZE];
+	char simulation_file[FILE_NAME_SIZE];
 	int nb_finalize = 0;
 	msg_task_t task_todo = NULL;
+	char first = 1;
 
 	if (argc != 3) {
 		exit(1);
@@ -793,6 +885,12 @@ int primary (int argc, char * argv[]) {
 	sprintf(myMailbox, "primary-%ld", id);
 	nb_clients = atoi(argv[2]);
 
+	strcpy(simulation_file, compute_name_file(id));
+	if ((data_csv[id] = open(simulation_file, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
+		printf("error open\n");
+		exit(1);
+	}
+
 	while (1) {
 		// reception of a message
 		MSG_task_receive(&(task_todo), myMailbox);
@@ -805,12 +903,22 @@ int primary (int argc, char * argv[]) {
 			task_todo = NULL;
 			nb_finalize++;
 			if (nb_finalize == nb_clients) {
+				char end_simulation[BUFFER_SIZE];
+				sprintf(end_simulation, "%f;\n", MSG_get_clock());	
+				write(data_csv[id], end_simulation, sizeof(char) * strlen(end_simulation));				
 				// if all clients have finish to send requests, the primary ask the workers to stop
 				send_finalize_to_workers(); 
 				break;
 			}
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "task", sizeof(char) * strlen("task"))) {
+			if (first == 1) {
+				first = -1;
+				char start_simulation[BUFFER_SIZE];
+				sprintf(start_simulation, "%f;\n", MSG_get_clock());
+				write(data_csv[id], start_simulation, sizeof(char) * strlen(start_simulation)); 
+			}
+
 			// the primary put the task to do in a fifo
 			printf("%s: I receive a task\n", myMailbox);
 			put_task_fifo(task_todo);
@@ -832,7 +940,7 @@ int primary (int argc, char * argv[]) {
 		else if (!strncmp(MSG_task_get_name(task_todo), "answer", sizeof(char) * strlen("answer"))) {
 			// the primary receive an answer to a request from a worker
 			printf("%s: I receive an answer\n", myMailbox);
-			treat_answer(task_todo, -1);
+			treat_answer(task_todo, -1, id);
 			if (simulator == ARANTES) {
 				try_to_treat_additional_replication();
 			}
@@ -842,7 +950,7 @@ int primary (int argc, char * argv[]) {
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "crash", sizeof(char) * strlen("crash"))) {
 			printf("%s: I receive a message indicating the crash of %s\n", myMailbox, (char *) MSG_task_get_data(task_todo));
-			treat_answer(task_todo, 1);
+			treat_answer(task_todo, 1, id);
 			MSG_task_destroy(task_todo);
 			task_todo = NULL;
 		}

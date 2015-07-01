@@ -31,6 +31,7 @@ void send_task(int i, char * mailbox, char * myMailbox) {
 			data->target_LOC = 0.90;
 		}
 	}
+	data->start_time = MSG_get_clock();
 	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, data);
 	MSG_task_send(task, mailbox);
 }

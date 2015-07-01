@@ -1,0 +1,63 @@
+<?xml version='1.0'?>
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid.dtd">
+<platform version="3">
+
+	<process host="primary" function="primary">
+		<argument value="1"/> <!-- id of the primary -->
+		<argument value="3"/> <!-- number of clients -->
+	</process>
+
+	<process host="client0" function="client">
+		<argument value="0"/> <!-- id of the client -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+	</process>
+	<process host="client1" function="client">
+		<argument value="1"/> <!-- id of the client -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+	</process>
+	<process host="client2" function="client">
+		<argument value="2"/> <!-- id of the client -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+	</process>
+
+	<process host="worker0" function="worker">
+		<argument value="0"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="97"/> <!-- value of the reputation -->
+	</process>
+	<process host="worker1" function="worker">
+		<argument value="1"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="91"/> <!-- value of the reputation -->
+	</process>
+	<process host="worker2" function="worker">
+		<argument value="2"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="44"/> <!-- value of the reputation -->
+	</process>
+	<process host="worker3" function="worker">
+		<argument value="3"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="99"/> <!-- value of the reputation -->
+	</process>
+	<process host="worker4" function="worker">
+		<argument value="4"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="71"/> <!-- value of the reputation -->
+	</process>
+	<process host="worker5" function="worker">
+		<argument value="5"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="7"/> <!-- value of the reputation -->
+	</process>
+	<process host="worker6" function="worker">
+		<argument value="6"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="86"/> <!-- value of the reputation -->
+	</process>
+	<process host="worker7" function="worker">
+		<argument value="7"/> <!-- id of the worker -->
+		<argument value="primary-1"/> <!-- name of the primary -->
+		<argument value="5"/> <!-- value of the reputation -->
+	</process>
+</platform>

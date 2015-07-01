@@ -216,7 +216,7 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 		index--;	
 		printf("value of index %d\n", index);
 
-		while ((index >= FIRST_ITEM + 1) && (xbt_dynar_length(*w) != group_formation_max_number)) {
+		while ((index >= FIRST_ITEM + 1) && (xbt_dynar_length(*w) < group_formation_max_number)) {
 			// at least 2 workers have a reputation above 50, we could do a binary search to add nodes
 			binary_search_pairs(w, &LOC, index, target_LOC);
 			printf("out of binary_search_pairs\n");
@@ -232,7 +232,7 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 			printf("a group of %ld workers is formed with target LOC %f\n", xbt_dynar_length(*w), LOC);
 			treat_tasks(w, task_to_treat);
 		}
-		else if (xbt_dynar_length(*w) == group_formation_max_number) {
+		else if (xbt_dynar_length(*w) >= group_formation_max_number) {
 			printf("a group of %ld workers is formed with target LOC %f, we don't want to be in that case\n", xbt_dynar_length(*w), LOC);
 			treat_tasks(w, task_to_treat);
 		}
@@ -481,8 +481,11 @@ void formGroup_tight_fit_Arantes(msg_task_t * task_to_treat) {
 			if (res <= target_LOC) {
 				break;
 			}
+			else if (xbt_dynar_length(*w) >= group_formation_max_number) {
+				break;
+			}
 		}
-		if (res <= target_LOC) {
+		if ((res <= target_LOC) || (xbt_dynar_length(*w) >= group_formation_max_number)) {
 			// we go out of the while boucle because we find a group whom LOC achieve target_LOC
 			treat_tasks(w, task_to_treat);
 		}
