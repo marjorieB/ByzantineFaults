@@ -19,6 +19,7 @@ int verify (struct p_task * p_t, struct p_worker w) {
 		xbt_dynar_foreach(p_a_w.worker_names, nb, name) {
 			printf("name of the worker %s\n", name); 
 			if (!strcmp(w.mailbox, name)) {
+				//MSG_task_execute(MSG_task_create("task_complexity", complexity + nb, 0, NULL);
 				return -1;
 			}
 		}
@@ -64,7 +65,6 @@ double valueCond2_replication (struct p_task * p_t) {
 	unsigned char reputation;	
 	unsigned int i;
 
-
 	xbt_dynar_foreach(p_t->w_answers, cpt, p) {
 		unsigned int nb;
 	
@@ -91,6 +91,7 @@ double valueCond2_replication (struct p_task * p_t) {
 	}
 
 	printf("value of cond2 : %f\n", (Psc / (tmp + Psc)));
+
 	return (Psc / (tmp + Psc));
 }
 
@@ -139,10 +140,12 @@ void replication_fixed_fit (struct p_task * p_t) {
 		xbt_dynar_push(workers, tmp);
 	}
 	workers_print(&workers);
+
 }
 
 
 int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
+
 	// sort the array of workers
 	xbt_dynar_sort(workers, compare_reputation_workers);
 
@@ -235,7 +238,7 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 				xbt_dynar_pop(p_t->additional_workers, NULL);
 				xbt_dynar_pop(p_t->additional_reputations, NULL);
 				xbt_dynar_insert_at(workers, index, toAdd);
-			
+
 				return binary_search_one_replication(p_t, array_tmp, index / 2);
 			}
 		}
@@ -275,7 +278,9 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 			break;
 		}
 	}
+
 	if (value_res > (1 - p_t->targetLOC)) {
+
 		return 1;
 	}
 	else {
@@ -311,6 +316,7 @@ int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 			xbt_dynar_push(*array_tmp, tmp);
 		}
 	}	
+
 	return -1;
 }
 

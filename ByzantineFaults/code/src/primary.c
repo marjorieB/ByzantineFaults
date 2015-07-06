@@ -221,7 +221,9 @@ void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat) {
 	xbt_dynar_foreach (*w, cpt, p_w) {
 		printf("send task %s %s to %s\n", t->client, t->task_name, p_w.mailbox);  
 		msg_task_t to_send = MSG_task_create(MSG_task_get_name(*task_to_treat), MSG_task_get_compute_duration(*task_to_treat), MSG_task_get_data_size(*task_to_treat), t->client);
+		printf("after MSG_task_create\n");
 		MSG_task_send(to_send, p_w.mailbox);
+		printf("after MSG_task_send\n");
 	}
 
 	xbt_fifo_push(processing_tasks, t);
@@ -238,7 +240,7 @@ void try_to_treat_tasks() {
 		xbt_fifo_item_t i;
 		msg_task_t * task_to_treat;
 
-		printf("content of the list \"tasks\" size %d, %ld:\n", xbt_fifo_size(tasks), xbt_dynar_length(workers));
+		printf("content of the list \"tasks\" size %d, %ld:\n", xbt_fifo_size(tasks), xbt_dynar_length(workers));	
 		for(i = xbt_fifo_get_first_item(tasks); ((i) ? (task_to_treat = (msg_task_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 			if (xbt_dynar_length(workers) >= group_formation_min_number) {
 				if (group_formation_strategy == FIXED_FIT) {

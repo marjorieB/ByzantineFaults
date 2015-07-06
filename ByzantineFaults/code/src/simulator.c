@@ -4,7 +4,73 @@
 #include "client.h"
 #include "simulator.h"
 #include <math.h>
-#include <mysql.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+
+void print_workers_presence() {
+	int i;
+	
+	for (i = 0; i < nb_workers; i++) {
+		printf("value in presence[%d]\n", i);
+		struct present_or_failed p_o_f;
+		unsigned cpt;
+
+		xbt_dynar_foreach(presence[i], cpt, p_o_f) {
+			printf("%f, %d\n", p_o_f.time, p_o_f.type);
+		}		
+	}
+}
+
+
+void fill_workers_presence_array(char * file_database) {
+	int fd;
+	int nb_lines_read = 0;
+	int i;
+	int error;
+	
+	if ((fd = open(file_database, O_RDWR, S_IRUSR | S_IWUSR)) == -1) {
+		printf("error open\n");
+		exit(1);
+	}
+
+	read(fd, &time_start, sizeof(double));
+	printf("value of time_start %f\n", time_start);
+
+	presence = (xbt_dynar_t *) malloc(sizeof(xbt_dynar_t) * nb_workers);
+
+	for (i = 0; i < nb_workers; i++) {
+		presence[i] = xbt_dynar_new(sizeof(struct present_or_failed), NULL);
+	}
+
+	while(nb_lines_read != nb_workers) {
+		double event_time;
+		unsigned char type;
+
+		if ((error = read(fd, &event_time, sizeof(double))) == 0) {
+			// end of the file
+			break;
+		}
+		if (event_time == -1.0) {
+			nb_lines_read++;
+		}
+		else {
+			if ((error = read(fd, &type, sizeof(unsigned char))) == 0) {
+				printf("error: read error %d\n", error);
+				exit(1);
+			}
+			struct present_or_failed * toAdd = (struct present_or_failed *) malloc(sizeof(struct present_or_failed)); 
+			toAdd->time = event_time;
+			toAdd->type = type;
+			
+			xbt_dynar_push(presence[nb_lines_read], toAdd);
+		}
+	} 
+
+	print_workers_presence();
+}
 
 
 int main (int argc, char * argv[]) {
@@ -12,9 +78,10 @@ int main (int argc, char * argv[]) {
 	char dep_file[FILE_NAME_SIZE];
 	char plat_file[FILE_NAME_SIZE];
 
-	if (argc < 7) {
+	if (argc < 8) {
 		printf("you are using a simulator simulating a probabilistic centralised replication algorithm\n");
-		printf("usage: ./my-boinc number_workers dep_file plat_file SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY\n");
+		printf("usage: ./my-boinc file_database number_workers dep_file plat_file SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY\n");
+		printf("file_database corresponds to the traces you want to use to simulate the behavior of your nodes\n");
 		printf("the number_workers corresponds to the number of worker you want in the system\n");
 		printf("the dep_file and the plat_file correspond respectively to the xml file describing the deployment and the platform\n");
 		printf("SIMULATOR can take two different values: SONNEK or ARANTES\n");
@@ -31,6 +98,7 @@ int main (int argc, char * argv[]) {
 	}
 	
 
+	index++;
 	if ((nb_workers = atoi(argv[index])) == 0) {
 		printf("the parameter %d must be the number of workers you want in the systems\n", index);
 	}
@@ -145,43 +213,7 @@ int main (int argc, char * argv[]) {
 		}
 	}
 
-	// search in the database for the value of time_start
-	MYSQL * conn;
-   MYSQL_RES * result;
-   MYSQL_ROW row;
-
-   const char* server = "127.0.0.1";
-   const char* user = "marjo";
-   const char* password = "marjo"; /* set me first */
-   const char* database = "test";
-	char request[REQUEST_SIZE];
-
-   conn = mysql_init(NULL);
-
-	/* Connect to database */
-   if (!mysql_real_connect(conn, server, user, password, database, 0, NULL, 0)) {
-      fprintf(stderr, "%s\n", mysql_error(conn));
-      exit(1);
-   }
-
-	
-	sprintf(request, "SELECT MIN(event_start_time) from event_trace where event_type = 1 limit %d", nb_workers);
-	if (mysql_query(conn, request)) {
-      fprintf(stderr, "%s\n", mysql_error(conn));
-      exit(1);
-   }
-
-   result = mysql_use_result(conn);
-
-	row = mysql_fetch_row(result);
-
-	time_start = atoi(row[0]);
-	printf("time_start=%f\n", time_start);
-
-	mysql_free_result(result);
-   
-	mysql_close(conn);
-     
+	fill_workers_presence_array(argv[1]);
 
 	// running the simulation
 	msg_error_t res = MSG_OK;

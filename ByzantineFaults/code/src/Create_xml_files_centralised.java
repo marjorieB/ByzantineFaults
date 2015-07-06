@@ -47,10 +47,11 @@ public class Create_xml_files_centralised {
 			try {
 				int i = 0;
 				stmt = conn.createStatement();
-				rs = stmt.executeQuery("select node_id from node limit " + nb_workers);
+				rs = stmt.executeQuery("select node_id from event_trace group by node_id order by node_id limit " + nb_workers);
 				while(rs.next()){
 					fw.write("\t<process host=\"worker" + i + "\" function=\"worker\">\n");
 					fw.write("\t\t<argument value=\"" + rs.getInt(1) + "\"/> <!-- id of the worker -->\n");
+					fw.write("\t\t<argument value=\"" + i + "\"/> <!-- number of the workers used for the global table -->\n");
 					fw.write("\t\t<argument value=\"primary-1\"/> <!-- name of the primary -->\n");
 					int reputation = new Random().nextInt(100);
 					if (reputation < 30) {

@@ -120,7 +120,7 @@ void try_to_treat_additional_replication(void);
 
 void treat_crash(msg_task_t task_todo);
 
-char * compute_name_file (void);
+char * compute_name_file (int id);
 
 int primary (int argc, char * argv[]);
 

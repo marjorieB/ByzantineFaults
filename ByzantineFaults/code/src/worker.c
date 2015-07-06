@@ -1,7 +1,6 @@
 #include "msg/msg.h"
 #include "worker.h"
 #include "task.h"
-#include <mysql.h>
 #include "simulator.h"
 #include <time.h>
 
@@ -27,92 +26,42 @@ void receive_ack(struct worker * worker, char * myMailbox) {
 
 //this function returns the time the process has to wait before entering in the system
 double enter_the_system (struct worker * me) {
-	MYSQL * conn;
-   MYSQL_RES * result;
-   MYSQL_ROW row;
-	double toRet;
+	struct present_or_failed p_o_f;
+	unsigned int cpt;
 
-   const char* server = "127.0.0.1";
-   const char* user = "marjo";
-   const char* password = "marjo"; /* set me first */
-   const char* database = "test";
-	char request[REQUEST_SIZE];
-
-   conn = mysql_init(NULL);
-
-	/* Connect to database */
-   if (!mysql_real_connect(conn, server, user, password, database, 0, NULL, 0)) {
-      fprintf(stderr, "%s\n", mysql_error(conn));
-      exit(1);
-   }
-
-	// first we check if the node is present at time where it receives the request and during all the time of the execution of the request
-	sprintf(request, "SELECT event_start_time from event_trace where node_id=%ld and event_type=1 LIMIT 1\n", me->id);
-
-	if (mysql_query(conn, request)) {
-      fprintf(stderr, "%s\n", mysql_error(conn));
-      exit(1);
-   }
-
-   result = mysql_use_result(conn);
-	if ((row = mysql_fetch_row(result)) == NULL) {
-		// the node is never on
-		printf("there is no result\n");
-		return -1;
+	xbt_dynar_foreach (presence[me->index], cpt, p_o_f) {
+		if (p_o_f.type == 1) {
+			return p_o_f.time - time_start;
+		}
 	}
-	toRet = atof(row[0]) - time_start;
-	mysql_free_result(result);
 
-	printf("value I need to wait before having the right to enter the system %f\n", toRet);
-	
-	return toRet;	
+	MSG_process_kill(MSG_process_self());
+	return 0.0;
 }
 
 
 // this function returns 0 if the node is present in the system, otherwise this function returns the time where the node have to recover (ask the primary to enter in the system)
 double present(struct worker * me, double duration_task) {
-	MYSQL * conn;
-   MYSQL_RES * result;
-   MYSQL_ROW row;
+	printf("start of function present\n");
 	double previous_time_start_event;
 	int previous_type_event;
 	double time_crash = 0.0;
-	double toRet = -1;
 	char crash = 0;
 
-   const char* server = "127.0.0.1";
-   const char* user = "marjo";
-   const char* password = "marjo"; /* set me first */
-   const char* database = "test";
-	char request[REQUEST_SIZE];
 
-   conn = mysql_init(NULL);
+	struct present_or_failed p_o_f;
+	unsigned int cpt;
 
-	/* Connect to database */
-   if (!mysql_real_connect(conn, server, user, password, database, 0, NULL, 0)) {
-      fprintf(stderr, "%s\n", mysql_error(conn));
-      exit(1);
-   }
-
-	// first we check if the node is present at time where it receives the request and during all the time of the execution of the request
-	sprintf(request, "SELECT event_type, event_start_time from event_trace where node_id=%ld\n", me->id);
-
-	if (mysql_query(conn, request)) {
-      fprintf(stderr, "%s\n", mysql_error(conn));
-      exit(1);
-   }
-
-   result = mysql_use_result(conn);
-	while ((row = mysql_fetch_row(result)) != NULL) {
-		if ((atof(row[1]) >= time_start + MSG_get_clock())) {
-			if (atof(row[1]) == time_start + MSG_get_clock()) {
+	xbt_dynar_foreach (presence[me->index], cpt, p_o_f) {
+		if (p_o_f.time >= time_start + MSG_get_clock()) {	
+			if (p_o_f.time == time_start + MSG_get_clock()) {
 				// the time in the trace corresponds to the time in the simulation, we have to check if the node is present at this time
-				if (atoi(row[0]) == 0) {
+				if (p_o_f.type == 0) {
 					if (crash != 1) {
 						crash = 1;
-						time_crash = atof(row[1]);
+						time_crash = p_o_f.time;
 					}
-				}
+				}				
 				else {
 					if (previous_type_event == 0) {
 						if (crash != 1) {
@@ -122,36 +71,30 @@ double present(struct worker * me, double duration_task) {
 					}
 				}
 			}
-			if (atof(row[1]) > time_start + MSG_get_clock() + duration_task) {
+			if (p_o_f.time > time_start + MSG_get_clock() + duration_task) {
 				break;
 			}
 		}
-		previous_time_start_event = atof(row[1]);
-		previous_type_event = atoi(row[0]);
+		previous_time_start_event = p_o_f.time;
+		previous_type_event = p_o_f.type;
 	}
 
 	if (crash == 0) {
-		mysql_free_result(result);
-   	mysql_close(conn);
 		return 0.0;
 	}
+	printf("here\n");
 
+	struct present_or_failed p;
+	unsigned int i;
 
-	sprintf(request, "SELECT event_start_time from event_trace where node_id=%ld and event_start_time > %f LIMIT 1\n", me->id, time_crash);
-
-	if (mysql_query(conn, request)) {
-      fprintf(stderr, "%s\n", mysql_error(conn));
-      exit(1);
-   }
-
-	result = mysql_use_result(conn);
-	if ((row = mysql_fetch_row(result)) != NULL) {
-		toRet = atof(row[0]) - (MSG_get_clock() + time_start);
+	xbt_dynar_foreach (presence[me->index], i, p) {
+		if (p.time > time_crash) {
+			if (p.type == 1) {
+				return p.time - (MSG_get_clock() + time_start);
+			}
+		}
 	}
-	
-	mysql_free_result(result); 
-	mysql_close(conn);
-	return toRet;
+	exit(1);
 }
 
 
@@ -160,7 +103,14 @@ double treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) 
 	struct w_task * data_toSend = (struct w_task *) malloc(sizeof(struct w_task));
 	double time_to_wait;
 
-	if ((time_to_wait = present(me, MSG_task_get_compute_duration(task))) == 0.0) {	
+	printf("here\n");
+	printf("value of MSG_task_get_compute_duration(task) %f\n", MSG_task_get_compute_duration(task));
+	printf("value of MSG_get_host_nb_pstates %d\n", MSG_get_host_nb_pstates(MSG_host_self()));
+	printf("value of the peak %f\n", MSG_get_host_power_peak_at(MSG_host_self(), 0.99));
+	printf("before present %f\n", MSG_task_get_compute_duration(task) / PEAK_FLOP_S);
+	if ((time_to_wait = present(me, (MSG_task_get_compute_duration(task) / PEAK_FLOP_S))) == 0.0) {
+
+		printf("after present\n");	
 		if (me->reputation == 1) {
 			data_toSend->answer = GOOD_ANSWER;
 		}
@@ -177,7 +127,7 @@ double treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) 
 		}
 		MSG_task_execute(task);	
 	}	
-	
+	printf("after present\n");	
 	strcpy(data_toSend->client, MSG_task_get_data(task));
 	strcpy(data_toSend->worker_name, myMailbox);
 	strcpy(data_toSend->task_name, MSG_task_get_name(task));
@@ -205,18 +155,21 @@ int worker (int argc, char * argv[]) {
 	char primary[MAILBOX_SIZE];
 	double time_to_wait;
 
-	if (argc != 4) {
+	if (argc != 5) {
 		exit(1);
 	}
 
 	srand(me->id + MSG_get_clock());
+//	printf("worker : before reading\n");
 
 	// the worker ask to join the system, then wait for an acknowledgement from the primary and then wait for request to treat
 	me->id = atoi(argv[1]);	
 	sprintf(myMailbox, "worker-%ld", me->id);
-	strcpy(primary, argv[2]);
-	me->reputation = atoi(argv[3]);
+	me->index = atoi(argv[2]);
+	strcpy(primary, argv[3]);
+	me->reputation = atoi(argv[4]);
 
+//	printf("worker : after reading\n");
 
 	if (me->reputation == 0) {
 		printf("%s: I am an average node\n", myMailbox);
@@ -231,6 +184,8 @@ int worker (int argc, char * argv[]) {
 
 	// wait the time indicated in the trace to enter the system	
 	MSG_process_sleep(enter_the_system(me));
+	printf("end enter_the_system\n");
+
 
 	printf("%s: ask to join the system to %s\n", myMailbox, primary);
 	ask_to_join(primary, myMailbox);
@@ -256,6 +211,7 @@ int worker (int argc, char * argv[]) {
 		}
 		else if (!strncmp(MSG_task_get_name(task), "task", strlen("task") * sizeof(char))) {
 			// if the availability_file still don't work, do a random to know if the worker will answer and put a percentage of availability in the xml file to describe the node
+			printf("reception of a task %s\n", myMailbox);
 			time_to_wait = treat_task_worker(me, task, myMailbox);
 			MSG_task_destroy(task);
 			task = NULL;

@@ -60,4 +60,9 @@ int nb_workers;
 // this global variable permits to know the starting time when the nodes we are using where trace
 double time_start;
 
+
+void print_workers_presence(void);
+
+void fill_workers_presence_array(char * file_database);
+
 #endif

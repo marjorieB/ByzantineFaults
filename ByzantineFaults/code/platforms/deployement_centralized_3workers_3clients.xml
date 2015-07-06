@@ -24,7 +24,7 @@
 		<argument value="0"/> <!-- id of the worker -->
 		<argument value="0"/> <!-- number of the workers used for the global table -->
 		<argument value="primary-1"/> <!-- name of the primary -->
-		<argument value="1"/> <!-- value of the reputation -->
+		<argument value="0"/> <!-- value of the reputation -->
 	</process>
 	<process host="worker1" function="worker">
 		<argument value="1"/> <!-- id of the worker -->
@@ -37,35 +37,5 @@
 		<argument value="2"/> <!-- number of the workers used for the global table -->
 		<argument value="primary-1"/> <!-- name of the primary -->
 		<argument value="-1"/> <!-- value of the reputation -->
-	</process>
-	<process host="worker3" function="worker">
-		<argument value="3"/> <!-- id of the worker -->
-		<argument value="3"/> <!-- number of the workers used for the global table -->
-		<argument value="primary-1"/> <!-- name of the primary -->
-		<argument value="1"/> <!-- value of the reputation -->
-	</process>
-	<process host="worker4" function="worker">
-		<argument value="4"/> <!-- id of the worker -->
-		<argument value="4"/> <!-- number of the workers used for the global table -->
-		<argument value="primary-1"/> <!-- name of the primary -->
-		<argument value="1"/> <!-- value of the reputation -->
-	</process>
-	<process host="worker5" function="worker">
-		<argument value="5"/> <!-- id of the worker -->
-		<argument value="5"/> <!-- number of the workers used for the global table -->
-		<argument value="primary-1"/> <!-- name of the primary -->
-		<argument value="1"/> <!-- value of the reputation -->
-	</process>
-	<process host="worker6" function="worker">
-		<argument value="6"/> <!-- id of the worker -->
-		<argument value="6"/> <!-- number of the workers used for the global table -->
-		<argument value="primary-1"/> <!-- name of the primary -->
-		<argument value="-1"/> <!-- value of the reputation -->
-	</process>
-	<process host="worker7" function="worker">
-		<argument value="7"/> <!-- id of the worker -->
-		<argument value="7"/> <!-- number of the workers used for the global table -->
-		<argument value="primary-1"/> <!-- name of the primary -->
-		<argument value="1"/> <!-- value of the reputation -->
 	</process>
 </platform>

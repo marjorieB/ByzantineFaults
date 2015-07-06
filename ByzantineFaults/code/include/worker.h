@@ -6,6 +6,8 @@
 
 
 #define REQUEST_SIZE 256
+#define PEAK_FLOP_S 2000000000
+
 
 // structure of information about tasks processing that a worker keep in memory (and transmit to the primary as answer)
 struct w_task {
@@ -19,8 +21,15 @@ struct worker {
 	char primary[MAILBOX_SIZE];
 	unsigned long int id;
 	char reputation;
+	unsigned long int index; // correspond to the index in which the worker has to take the information about it
 };
 
+struct present_or_failed {
+	double time;
+	unsigned char type;
+};
+
+xbt_dynar_t * presence;
 
 
 void ask_to_join(char * mailbox, char * myMailbox);
