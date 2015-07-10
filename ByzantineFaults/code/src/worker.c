@@ -103,12 +103,7 @@ double treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) 
 	struct w_task * data_toSend = (struct w_task *) malloc(sizeof(struct w_task));
 	double time_to_wait;
 
-	printf("here\n");
-	printf("value of MSG_task_get_compute_duration(task) %f\n", MSG_task_get_compute_duration(task));
-	printf("value of MSG_get_host_nb_pstates %d\n", MSG_get_host_nb_pstates(MSG_host_self()));
-	printf("value of the peak %f\n", MSG_get_host_power_peak_at(MSG_host_self(), 0.99));
-	printf("before present %f\n", MSG_task_get_compute_duration(task) / PEAK_FLOP_S);
-	if ((time_to_wait = present(me, (MSG_task_get_compute_duration(task) / PEAK_FLOP_S))) == 0.0) {
+	if ((time_to_wait = present(me, (MSG_task_get_compute_duration(task) / MSG_get_host_power_peak_at(MSG_host_self(), 0)))) == 0.0) {
 
 		printf("after present\n");	
 		if (me->reputation == 1) {

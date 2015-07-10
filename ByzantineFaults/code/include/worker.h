@@ -6,7 +6,6 @@
 
 
 #define REQUEST_SIZE 256
-#define PEAK_FLOP_S 2000000000
 
 
 // structure of information about tasks processing that a worker keep in memory (and transmit to the primary as answer)

@@ -41,10 +41,11 @@ void workers_print(xbt_dynar_t * w) {
 	struct p_worker p_w;
 	unsigned int cpt;
 
-	printf("list of the workers of the system:\n");
+	printf("list of the workers of the system: %ld\n", xbt_dynar_length(workers));
 	xbt_dynar_foreach (*w, cpt, p_w) {
  		printf("p_w.name= %s, p_w.reputation=%d\n", p_w.mailbox, p_w.reputation);
 	}
+	printf("value of cpt = %u\n", cpt);
 }
 
 
@@ -74,9 +75,11 @@ struct p_worker * dynar_search(const char * name) {
 
 	xbt_dynar_foreach (workers, cpt, p_w) {
  		if (!strcmp(p_w.mailbox, name)) {
+			MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
 			return xbt_dynar_get_ptr(workers, cpt);
 		}
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
 	return NULL;
 }
 
@@ -98,6 +101,8 @@ void add_new_worker(const char * name, char * myMailbox) {
 	msg_task_t ack;
 	struct p_worker * worker = (struct p_worker *) malloc(sizeof(struct p_worker));
 
+	double complexity = 0.0;
+
 	// we must verify that it isn't a worker we already have, if it is the case, we need to reset it (the node has been shutdown and the primary didn't seen it.
 	if ((w_found = dynar_search(name)) != NULL) {
 		w_found->totR = 0;
@@ -112,6 +117,7 @@ void add_new_worker(const char * name, char * myMailbox) {
 			// the reputation_strategy chosen is the reputation used in Sonnek
 			updateReputation_Sonnek(w_found);
 		}
+		complexity += 5.0;
 	}
 	else {
 		// creation of a new worker
@@ -130,10 +136,14 @@ void add_new_worker(const char * name, char * myMailbox) {
 		}
 
 		xbt_dynar_push(workers, worker);
+		complexity += 7.0;
 	}
 	printf("sending acknowledgement to the worker\n");
 	ack = MSG_task_create("ack", ACK_COMPUTE_DURATION, ACK_MESSAGE_SIZE, myMailbox);
 	MSG_task_send(ack, name);	
+
+	complexity += 2.0;
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
@@ -142,6 +152,7 @@ void put_task_fifo(msg_task_t task) {
 
 	*todo = MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), MSG_task_get_data(task));
 	xbt_fifo_push(tasks, todo);
+	MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
 }
 
 
@@ -231,10 +242,14 @@ void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat) {
 	xbt_fifo_remove(tasks, task_to_treat);	
 	printf("tasks removed\n");	
 	tasks_print();
+
+	MSG_task_execute(MSG_task_create("task_complexity", 24.0 + cpt, 0, NULL));
 }
 
 
 void try_to_treat_tasks() {
+	double complexity = 0.0;
+
 	if (xbt_dynar_length(workers) >= group_formation_min_number) {
 
 		xbt_fifo_item_t i;
@@ -242,8 +257,10 @@ void try_to_treat_tasks() {
 
 		printf("content of the list \"tasks\" size %d, %ld:\n", xbt_fifo_size(tasks), xbt_dynar_length(workers));	
 		for(i = xbt_fifo_get_first_item(tasks); ((i) ? (task_to_treat = (msg_task_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+			complexity += 4.0;
 			if (xbt_dynar_length(workers) >= group_formation_min_number) {
 				if (group_formation_strategy == FIXED_FIT) {
+					complexity += 3.0;
 					printf("call formGroup_fixed_fit\n");
 					formGroup_fixed_fit(task_to_treat);
 				}
@@ -255,6 +272,7 @@ void try_to_treat_tasks() {
 						// the simulator chosen is SONNEK
 						formGroup_first_fit_Sonnek(task_to_treat);
 					}
+					complexity += 5.0;
 				}
 				else if (group_formation_strategy == TIGHT_FIT) {
 					if (simulator == ARANTES) {
@@ -264,6 +282,7 @@ void try_to_treat_tasks() {
 						// the simulator chosen is SONNEK
 						formGroup_tight_fit_Sonnek(task_to_treat);
 					}
+					complexity += 6.0;
 				}
 				else {
 					// the group_formation_strategy chosen is the RANDOM_FIT
@@ -274,14 +293,17 @@ void try_to_treat_tasks() {
 						// the simulator chosen is SONNEK
 						formGroup_random_fit_Sonnek(task_to_treat);
 					}
+					complexity += 6.0;
 				}
 			}
 			else {
+				complexity += 2.0;
 				printf("have to break\n");
 				break;
 			}
 		}
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
 }
 
 
@@ -291,9 +313,11 @@ struct p_worker * give_worker_dynar(char * name) {
 
 	xbt_dynar_foreach(workers, cpt, p_w) {
  		if (!strcmp(p_w.mailbox, name)) {	
+			MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
 			return xbt_dynar_get_ptr(workers, cpt);
 		}
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
 	return NULL;
 }
 
@@ -301,6 +325,7 @@ struct p_worker * give_worker_dynar(char * name) {
 struct p_worker * give_worker_active_groups(char * name) {
 	xbt_fifo_item_t i;
 	xbt_dynar_t * n;
+	double complexity = 0.0;
 
 	for(i = xbt_fifo_get_first_item(active_groups); ((i) ? (n = (xbt_dynar_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 	
@@ -309,10 +334,13 @@ struct p_worker * give_worker_active_groups(char * name) {
 
 		xbt_dynar_foreach(*n, cpt, p_w) { 
 	 		if (!strcmp(p_w.mailbox, name)) {
+				MSG_task_execute(MSG_task_create("task_complexity", complexity + cpt + 4.0, 0, NULL));
 				return xbt_dynar_get_ptr(*n, cpt);
 			}
 		}
+		complexity += cpt;
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
 	return NULL;
 }
 
@@ -322,6 +350,7 @@ void updateReputation(struct p_task * t) {
 	struct p_worker * toModify;
 	unsigned int cpt;
 	char good_or_bad_answer;
+	double complexity = 0.0;
 
 	xbt_dynar_foreach (t->w_answers, cpt, p_a_w) {
 		char name[MAILBOX_SIZE];
@@ -330,34 +359,43 @@ void updateReputation(struct p_task * t) {
 		xbt_dynar_foreach(p_a_w.worker_names, cpt1, name) {
 		// search for the worker on the workers list
 			if ((toModify = give_worker_dynar(name)) == NULL) {
+				complexity += 2.0;
 				if ((toModify = give_worker_active_groups(name)) == NULL) {
 					printf("unknown worker: impossible\n");
 					exit(1);
 				} 			
 			}
+			complexity += 4.0;
 			toModify->totR++;
 			if (p_a_w.answer == t->final_answer) {
 				toModify->totC++;
 				good_or_bad_answer = 1;
+				complexity += 2.0;
 			}
 			else {
-				good_or_bad_answer = -1;
+				good_or_bad_answer = -1;	
+				complexity++;
 			}
 			if (reputation_strategy == SYMMETRICAL) {
 				updateReputation_Symmetrical(toModify, good_or_bad_answer);
+				complexity++;
 			}
 			else if (reputation_strategy == ASYMMETRICAL) {
 				updateReputation_Asymmetrical(toModify, good_or_bad_answer);
+				complexity += 2.0;
 			}
 			else if (reputation_strategy == BOINC) {
 				updateReputation_BOINC(toModify);
+				complexity += 3.0;
 			}
 			else {
 				// the reputation_strategy chosen is the reputation used in Sonnek
 				updateReputation_Sonnek(toModify);
+				complexity += 3.0;
 			}
 		}
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
 }
 
 
@@ -366,14 +404,19 @@ void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_nam
 	struct p_answer_worker w_a;
 	struct p_answer_worker * toModify = NULL;
 	struct p_worker * w;
+	double complexity = 0.0;
 	
 	w = give_worker_active_groups(worker_name);
 
 	xbt_dynar_foreach(*w_answers, cpt, w_a) {
- 		if (w_a.answer == answer) {	
+ 		if (w_a.answer == answer) {
+			complexity += 2.0;	
 			toModify = xbt_dynar_get_ptr(*w_answers, cpt);
+			break;
 		}
 	}
+	complexity = complexity + cpt;
+
 	if (toModify == NULL) {
 		// the answer returned by the worker hasn't been returned for that request, we create it
 		struct p_answer_worker * toAdd = (struct p_answer_worker *) malloc(sizeof(struct p_answer_worker));
@@ -383,12 +426,15 @@ void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_nam
 		xbt_dynar_push(toAdd->worker_names, worker_name);
 		xbt_dynar_push(toAdd->worker_reputations, &(w->reputation));
 		xbt_dynar_push(p_t->w_answers, toAdd);
+		complexity += 7.0;
 	}
 	else {
 		// the answer returned by the worker has been already returned by other(s) worker(s), we just add the name of the worker to the list of workers having returned this answer
 		xbt_dynar_push(toModify->worker_names, worker_name);
 		xbt_dynar_push(toModify->worker_reputations, &(w->reputation));
+		complexity += 2.0;
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 1.0, 0, NULL));
 }
 
 
@@ -398,7 +444,8 @@ double valueCond2 (struct p_answer_worker * res, struct p_task * p_t) {
 	unsigned int cpt;
 	struct p_answer_worker p;
 	unsigned int nb;
-	unsigned char reputation;	
+	unsigned char reputation;
+	double complexity = 0.0;	
 
 	xbt_dynar_foreach(p_t->w_answers, cpt, p) {
 		
@@ -407,13 +454,17 @@ double valueCond2 (struct p_answer_worker * res, struct p_task * p_t) {
 				Psc = Psc * ((double)reputation/100.0);
 				tmp = tmp * (1.0 - ((double)reputation/100.0));
 			}
+			complexity = complexity + 7.0 * nb;
 		}
 		else {
 			xbt_dynar_foreach(p.worker_reputations, nb, reputation) {
 				Psc = Psc * (1.0 - ((double)reputation/100.0));
 			} 
+			complexity = complexity + 4.0 * nb;
 		}
+		complexity += 2.0;
 	}	
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
 	return (Psc / (tmp + Psc));
 }
 
@@ -427,6 +478,7 @@ void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, 
 	//double min = 1000.0;
 	double max_double = 0.0;
 	double tmp;
+	double complexity = 0.0;
 
 	xbt_dynar_foreach(p_t->w_answers, cpt, w_a) {
 		if ((simulator == SONNEK) || ((simulator == ARANTES) && (group_formation_strategy == FIXED_FIT))) {
@@ -435,9 +487,11 @@ void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, 
 				max = xbt_dynar_length(w_a.worker_names);
 				*nb_majoritary_answer = 1;
 				res = xbt_dynar_get_ptr(p_t->w_answers, cpt);
+				complexity += 7.0;
 			}
 			else if (xbt_dynar_length(w_a.worker_names) == max) {
 				*nb_majoritary_answer = *nb_majoritary_answer + 1;
+				complexity += 6.0;
 			}
 		}
 		else {
@@ -448,16 +502,21 @@ void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, 
 				res = xbt_dynar_get_ptr(p_t->w_answers, cpt);
 				*nb_majoritary_answer = 1;
 				printf("value of max_value %f, nombre de noeuds ayant rendu ce résultat %ld\n", tmp, xbt_dynar_length(w_a.worker_names));
+				complexity += 8.0;
 			} 
 			else if (tmp == max) {
 				*nb_majoritary_answer = *nb_majoritary_answer + 1;	
+				complexity += 6.0;
 				printf("value of max_value %f, nombre de noeuds ayant rendu ce résultat %ld\n", tmp, xbt_dynar_length(w_a.worker_names));
 			}
 			else {////// else to suppress : just for the debug
 				printf("value of max_value %f, nombre de noeuds ayant rendu ce résultat %ld\n", tmp, xbt_dynar_length(w_a.worker_names));
 			}
 		}
+		complexity += 3.0;
 	}
+	complexity++;
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 	p_t->res = res;
 }	
 
@@ -489,7 +548,9 @@ void writes_data (char * client_name, char * task_name, double time_start_task, 
 
 
 void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process, int id) {
-	if (nb_majoritary_answer == 1 && xbt_dynar_length(n->res->worker_names) > floor((double)n->nb_forwarded/2.0)) {
+	double complexity = 0.0;
+
+	if ((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) > floor((double)n->nb_forwarded/2.0))) {
 		printf("send the answer %ld to client %s\n", n->res->answer, n->client);
 		// there is no ambiguity on the final result: the majority doesn't necessarly correspond to the absolute majority
 		n->final_answer = n->res->answer;
@@ -498,6 +559,7 @@ void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * proc
 		msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 		MSG_task_send(answer_client, n->client);
 
+		complexity += 6.0;
 		workers_print(&workers);
 	}	
 	else if (nb_majoritary_answer == 1) {
@@ -506,6 +568,8 @@ void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * proc
 		printf("send fail to client %s\n", n->client);
 		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 		MSG_task_send(fail, n->client);
+
+		complexity += 7.0;
 	}				
 	else {
 		writes_data(n->client, n->task_name, n->start, 1, 0, xbt_dynar_length(n->res->worker_names), id);
@@ -514,22 +578,25 @@ void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * proc
 		printf("send fail to client %s\n", n->client);
 		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 		MSG_task_send(fail, n->client);
+		complexity += 6.0;
 	}
 	// in case of Sonnek what ever happen, when all the workers have answer the task is processed (because there isn't any addtional replication strategy)
 	*process = 1;
+	complexity++;
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 	// update the reputation of the workers and suppress the processing task
 	updateReputation(n);
 }
 
 
 void replication(struct p_task * n) {
-	n->nb_replication++;
+	/*n->nb_replication++;
 	if (n->nb_replication == REPLICATION_MAX) {
 		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
 		MSG_task_send(fail, n->client);
 		// destruction of the processing tasks
 		
-	}
+	}*/
 
 	if (group_formation_strategy == FIXED_FIT) {
 		printf("replication fixed_fit\n");
@@ -538,11 +605,15 @@ void replication(struct p_task * n) {
 	else {
 		replication_others_fit(n);
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", 1.0, 0, NULL));
 }
 
 
 void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value, int id) {
+	double complexity = 0.0;
+
 	if (group_formation_strategy == FIXED_FIT) {
+		complexity++;
 		if (additional_replication_strategy == ITERATIVE_REDUNDANCY) {
 			printf("value of nb_majoritary_answer=%d value of res =%lu, n->nb_forwarded=%d, n->res->worker_names = %ld\n", nb_majoritary_answer, n->res->answer, n->nb_forwarded, xbt_dynar_length(n->res->worker_names));  
 			if ((nb_majoritary_answer == 1) && ((xbt_dynar_length(n->res->worker_names) - (n->nb_forwarded - xbt_dynar_length(n->res->worker_names))) >= additional_replication_value_difference)) {
@@ -554,6 +625,7 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 				MSG_task_send(answer_client, n->client);
 
 				*process = 1;
+				complexity += 2.0;
 				updateReputation(n);
 			}
 			else {
@@ -562,6 +634,7 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 				replication(n);
 				printf("after additional replication\n");
 			}
+			complexity += 7.0;
 		}
 		else {
 			// additionnal_replication_strategy == PROGRESSIVE_REDUNDANCY
@@ -573,12 +646,15 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 				MSG_task_send(answer_client, n->client);
 
 				*process = 1;
+				complexity += 2.0;
 				updateReputation(n);
 			}
 			else {
 				replication(n);
 			}
+			complexity += 7.0;
 		}
+		complexity++;
 	}
 	else if (((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) == n->nb_forwarded)) || ((max_value > (1.0 - n->targetLOC)) && (xbt_dynar_length(n->res->worker_names) > 1))) {
 		// there is no ambiguity on the final result
@@ -590,6 +666,7 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 		MSG_task_send(answer_client, n->client);
 
 		*process = 1;
+		complexity += 10.0;
 		updateReputation(n);
 	}
 	else {
@@ -599,21 +676,26 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 		xbt_dynar_foreach(n->res->worker_names, nb, name) {
 			printf("value of the name that return the good answer %s\n", name);
 		}
-
+		complexity += 8.0;
 		replication(n);
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
 int inAdditional_replication_tasks (struct p_task * p_t) {
 	xbt_fifo_item_t i;
 	struct p_task * n;
+	double complexity = 0.0;
 
    for(i = xbt_fifo_get_first_item(additional_replication_tasks); ((i) ? (n = (struct p_task *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+		complexity++;
 		if (n == p_t) {
+			MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
 			return 1;
 		}
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
 	return -1;
 }
 
@@ -635,10 +717,12 @@ void suppress_processing_tasks_and_active_group(struct p_task * n) {
 	else {
 		printf("task suppressed from the processing_tasks\n");
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", 5.0, 0, NULL));
 }
 
 
 void worker_from_active_group_to_workers(char * name, struct p_task * n, int process) {
+	double complexity = 4.0;
 
 	// move the worker from the active groups from the workers
 	xbt_fifo_item_t j;
@@ -662,12 +746,16 @@ void worker_from_active_group_to_workers(char * name, struct p_task * n, int pro
 				break;
 			}
 		}
+		complexity = complexity + cpt + 1.0;
+
 		if (found == 1) {
 			xbt_dynar_remove_at(*d, cpt, toAddToWorkers);
+			complexity++;
 			break;
 		}
 	}
 
+	complexity += 2.0;
 	xbt_dynar_push(workers, toAddToWorkers);
 	if (process == 1) {
 		//suppress_processing_tasks_and_active_group(d, n);
@@ -685,10 +773,13 @@ void worker_from_active_group_to_workers(char * name, struct p_task * n, int pro
 			break;
 		}
 	}
+	complexity = complexity + nb + 1.0;
 	if (found == 1) {
 		xbt_dynar_remove_at(n->additional_workers, nb, NULL);
 		xbt_dynar_remove_at(n->additional_reputations, nb, NULL);
+		complexity += 2.0;
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
@@ -697,6 +788,7 @@ void worker_from_active_group_to_suppression(char * name, struct p_task * n, int
 	xbt_fifo_item_t j;
 	xbt_dynar_t * d;
 	struct p_worker * toSuppress = NULL;
+	double complexity = 0.0;
 
 	for(j = xbt_fifo_get_first_item(active_groups); ((j) ? (d = (xbt_dynar_t *)(xbt_fifo_get_item_content(j))) : (NULL)); j = xbt_fifo_get_next_item(j)) {
 
@@ -708,6 +800,7 @@ void worker_from_active_group_to_suppression(char * name, struct p_task * n, int
 				break;
 			}
 		}
+		complexity = complexity + cpt + 1.0;
 		xbt_dynar_remove_at(*d, cpt, toSuppress);
 		break;
 	}
@@ -718,6 +811,8 @@ void worker_from_active_group_to_suppression(char * name, struct p_task * n, int
 		//suppress_processing_tasks_and_active_group(d, n);
 		suppress_processing_tasks_and_active_group(n);
 	}
+	complexity += 6.0;
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
@@ -735,15 +830,19 @@ void treat_answer(msg_task_t t, int crash, int id) {
 
 	w_t = (struct w_task *)MSG_task_get_data(t);
 	printf("received %s %s %s %ld\n", w_t->client, w_t->worker_name, w_t->task_name, w_t->answer);
-
+	
+	double complexity = 0.0;
 
 	// the primary have to find the element of processing_tasks that correspond to the answer
    for(i = xbt_fifo_get_first_item(processing_tasks); ((i) ? (n = (struct p_task *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+		complexity += 4.0;
 		if ((strcmp(n->client, w_t->client) == 0) && (strcmp(n->task_name, w_t->task_name) == 0)) {
 			// add the worker to w_answers
 			add_answers(n, &(n->w_answers), w_t->worker_name, w_t->answer);
 
+			complexity++;
 			if (crash == 1) {
+				complexity++;
 				n->nb_crashed++;
 			}
 			else {
@@ -754,6 +853,7 @@ void treat_answer(msg_task_t t, int crash, int id) {
 				else {
 					n->nb_correct_answers++;
 				}
+				complexity += 3.0;
 			}
 			if (((n->nb_answers_received + n->nb_crashed) == n->nb_forwarded) && (inAdditional_replication_tasks(n) == -1)) {
 				n->to_replicate = 0;
@@ -773,10 +873,14 @@ void treat_answer(msg_task_t t, int crash, int id) {
 					// we simulate the algorithm used in ARANTES
 					send_answer_Arantes(n, nb_majoritary_answer, &process, max_value, id);
 				}
+				complexity += 6.0;
 			}
+			complexity += 3.0;
 			break;
 		}
 	}
+	complexity += 5.0;
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 	
 	if (crash == 1) {
 		worker_from_active_group_to_suppression(w_t->worker_name, n, process);
@@ -791,9 +895,12 @@ void try_to_treat_additional_replication() {
 	int i;
 	int size = xbt_fifo_size(additional_replication_tasks);
 	printf("start of try_to_treat_additional_replication\n");
+	double complexity = 2.0;
 
 	for (i = 0; i < size; i++) {
+		complexity += 2.0;
 		if (xbt_dynar_length(workers) >= 0) {
+			complexity++;
 			if (group_formation_strategy == FIXED_FIT) {
 				replication_fixed_fit((struct p_task *)fifo_supress_head(additional_replication_tasks));
 			}
@@ -805,6 +912,7 @@ void try_to_treat_additional_replication() {
 			break;
 		}
 	}
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
