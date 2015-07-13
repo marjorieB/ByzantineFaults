@@ -69,7 +69,7 @@ int client (int argc, char * argv[]) {
 	unsigned long int id;
 	int nb_requests;
 	char myMailbox[MAILBOX_SIZE];
-	char primary[MAILBOX_SIZE];
+	char primary[MAILBOX_SIZE]; // when we use the decentrlized solution, the client send its request to the first-primary. (However the code is the same, we just change in the xml file the identity of the primary by the identity of the first-primary)
 
 	if (argc != 3) {
 		exit(1);

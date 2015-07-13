@@ -78,12 +78,14 @@ int main (int argc, char * argv[]) {
 	char dep_file[FILE_NAME_SIZE];
 	char plat_file[FILE_NAME_SIZE];
 
-	if (argc < 8) {
+	if (argc < 9) {
 		printf("you are using a simulator simulating a probabilistic centralised replication algorithm\n");
-		printf("usage: ./my-boinc file_database number_workers dep_file plat_file SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY\n");
+		printf("usage: ./my-boinc file_database number_workers dep_file plat_file centrality SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY\n");
 		printf("file_database corresponds to the traces you want to use to simulate the behavior of your nodes\n");
 		printf("the number_workers corresponds to the number of worker you want in the system\n");
 		printf("the dep_file and the plat_file correspond respectively to the xml file describing the deployment and the platform\n");
+		printf("centrality can take two different values: CENTRALIZED or DISTRIBUTED\n");
+		printf("if you use DISTRIBUTED you need to indicate whether you want a RANDOM strategy or a strategy depending on the reputations of workers. In this last case you need to enter REPUTATION\n");
 		printf("SIMULATOR can take two different values: SONNEK or ARANTES\n");
 		printf("REPUTATION_STRATEGY can take 4 different values: SYMMETRICAL, ASYMMETRICAL, BOINC, SONNEK_REPUTATION\n");
 		printf("if you use SYMMETRICAL you need to precise just behind the value x of which the reputation will be increase or decrease\n");
@@ -106,6 +108,29 @@ int main (int argc, char * argv[]) {
 	strcpy(dep_file, argv[index]);
 	index++;
 	strcpy(plat_file, argv[index]);
+	index++;
+
+	if (!strcmp(argv[index], "CENTRALIZED")) {
+		centrality = CENTRALIZED;
+	}
+	else if (!strcmp(argv[index], "DISTRIBUTED")) {
+		centrality = DISTRIBUTED;
+		index++;
+		if (!strcmp(argv[index], "RANDOM")) {
+			distributed_strategies = RANDOM;
+		}
+		else if (!strcmp(argv[index], "REPUTATIONS")) {
+			distributed_strategies = REPUTATIONS;
+		}
+		else {
+			printf("when chosing DISTRIBUTED, the parameter %d must have the value RANDOM or REPUTATIONS\n", index);
+			exit(1);	
+		}
+	}
+	else {
+		printf("the parameter %d must have the value CENTRALISED or DISTRIBUTED\n", index);
+		exit(1);
+	}
 	index++;
 
 	if (!strcmp(argv[index], "SONNEK")) {
@@ -215,6 +240,7 @@ int main (int argc, char * argv[]) {
 
 	fill_workers_presence_array(argv[1]);
 
+	printf("here\n");
 	// running the simulation
 	msg_error_t res = MSG_OK;
 
@@ -226,6 +252,7 @@ int main (int argc, char * argv[]) {
 
 	MSG_create_environment(plat_file);
 	MSG_launch_application(dep_file);
+	printf("and here\n");
 
 	res = MSG_main();
 

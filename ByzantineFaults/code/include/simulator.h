@@ -5,6 +5,12 @@
 #define FILE_NAME_SIZE 256
 #define BUFFER_SIZE 256
 
+// variables for initialised the global variable named centrality
+#define CENTRALIZED 1
+#define DISTRIBUTED 2
+// variables for initialised the global variable named distributed_strategies
+#define RANDOM 1
+#define REPUTATIONS 2
 // variables for initialised the global variable named simulator
 #define SONNEK 1
 #define ARANTES 2
@@ -24,6 +30,13 @@
 #define PROGRESSIVE_REDUNDANCY 3
 
 #define MAXIMUM_NUMBER_PRIMARIES 250
+
+
+// this global variable indicate if we are using a centralised or a decentralized algorithms
+int centrality;
+
+//this global variable indicate whether we use random strategies or strategies depending on the workers' reputations to assign workers to primaries and to request the primaries with the clients' queries
+int distributed_strategies;
 
 // this global variable indicate if we use the strategies used in Sonnek, or in Arantes
 int simulator;

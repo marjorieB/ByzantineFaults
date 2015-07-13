@@ -86,7 +86,7 @@ double compute_LOC(xbt_dynar_t * w) {
 }
 
 
-void formGroup_fixed_fit(msg_task_t * task_to_treat) {
+void formGroup_fixed_fit(msg_task_t * task_to_treat, int id) {
 	int i;
 	int nb_rand;
 	int until = group_formation_fixed_number;
@@ -104,9 +104,9 @@ void formGroup_fixed_fit(msg_task_t * task_to_treat) {
 	*w = xbt_dynar_new(sizeof(struct p_worker), NULL);	
 
 	for(i = 0; i < until; i++) {
-		nb_rand = rand() % (xbt_dynar_length(workers));
+		nb_rand = rand() % (xbt_dynar_length(workers[id]));
 		//printf("value nb_rand=%d\n", nb_rand);
-		xbt_dynar_remove_at(workers, nb_rand, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], nb_rand, (void *)toAdd);
 			
 		//printf("remove toAdd.name= %s\ntoAdd.reputation=%d\n", toAdd->mailbox, toAdd->reputation);
 		xbt_dynar_push(*w, toAdd);
@@ -116,15 +116,15 @@ void formGroup_fixed_fit(msg_task_t * task_to_treat) {
 	complexity = complexity + until * 5.0;
 	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 
-	treat_tasks(w, task_to_treat);
+	treat_tasks(w, task_to_treat, id);
 }
 
 
 // this function do the same thing that formGroup_first_Arantes but the groups formed are odd.
-void formGroup_first_fit_Sonnek(msg_task_t * task_to_treat) {
+void formGroup_first_fit_Sonnek(msg_task_t * task_to_treat, int id) {
 	double LOC;
 	double complexity = 0.0;
-	xbt_dynar_sort(workers, compare_reputation_workers);
+	xbt_dynar_sort(workers[id], compare_reputation_workers);
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
 	xbt_dynar_t * w = (xbt_dynar_t *)malloc(sizeof(xbt_dynar_t));			
@@ -134,7 +134,7 @@ void formGroup_first_fit_Sonnek(msg_task_t * task_to_treat) {
 	double target_LOC = data->target_LOC;
 
 	do {
-		xbt_dynar_remove_at(workers, FIRST_ITEM, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], FIRST_ITEM, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);
 	
 		if (xbt_dynar_length(*w) >= group_formation_min_number) {
@@ -143,10 +143,10 @@ void formGroup_first_fit_Sonnek(msg_task_t * task_to_treat) {
 		}
 		complexity += 14.0;
 
-	} while(((LOC < target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number) || (xbt_dynar_length(*w) % 2 == 0)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers) != 0));
-	if (xbt_dynar_length(workers) == 0) {
+	} while(((LOC < target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number) || (xbt_dynar_length(*w) % 2 == 0)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers[id]) != 0));
+	if (xbt_dynar_length(workers[id]) == 0) {
 		if(((LOC >= target_LOC) && (xbt_dynar_length(*w) >= group_formation_min_number) && (xbt_dynar_length(*w) % 2 != 0)) || (xbt_dynar_length(*w) == group_formation_max_number)) {
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 			printf("a group of %ld workers is formed with target LOC %f\n", xbt_dynar_length(*w), LOC);
 		}
 		else {
@@ -156,7 +156,7 @@ void formGroup_first_fit_Sonnek(msg_task_t * task_to_treat) {
 			long int until = xbt_dynar_length(*w);
 			for (i = 0; i < until; i++) {
 				xbt_dynar_remove_at(*w, FIRST_ITEM, (void *)toAdd);
-				xbt_dynar_push(workers, toAdd);
+				xbt_dynar_push(workers[id], toAdd);
 			}		
 			complexity += 2.0 + until * 2.0; 
 		}
@@ -164,20 +164,20 @@ void formGroup_first_fit_Sonnek(msg_task_t * task_to_treat) {
 	}
 	else {
 		printf("a group of %ld workers is formed with target LOC %f\n", xbt_dynar_length(*w), LOC);
-		treat_tasks(w, task_to_treat);
+		treat_tasks(w, task_to_treat, id);
 	}
 	complexity += 2.0;
 	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
-void binary_search_pairs(xbt_dynar_t * w, double * LOC, int index, double target_LOC) {
+void binary_search_pairs(xbt_dynar_t * w, double * LOC, int index, double target_LOC, int id) {
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
 	if (index <= FIRST_ITEM + 1) {
-		xbt_dynar_remove_at(workers, index, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);			
-		xbt_dynar_remove_at(workers, index - 1, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], index - 1, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);	
 
 		*LOC = compute_LOC(w);
@@ -185,9 +185,9 @@ void binary_search_pairs(xbt_dynar_t * w, double * LOC, int index, double target
 		return;
 	}
 	else {
-		xbt_dynar_remove_at(workers, index, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);			
-		xbt_dynar_remove_at(workers, index - 1, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], index - 1, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);	
 
 		*LOC = compute_LOC(w);
@@ -198,18 +198,18 @@ void binary_search_pairs(xbt_dynar_t * w, double * LOC, int index, double target
 		else {
 			// the two workers add doesn't help to achieve the target_LOC. Search for two better workers
 			xbt_dynar_pop(*w, toAdd);
-			xbt_dynar_insert_at(workers, index - 1, toAdd);
+			xbt_dynar_insert_at(workers[id], index - 1, toAdd);
 			xbt_dynar_pop(*w, toAdd);
-			xbt_dynar_insert_at(workers, index - 1, toAdd);
+			xbt_dynar_insert_at(workers[id], index - 1, toAdd);
 
 			MSG_task_execute(MSG_task_create("task_complexity", 16.0, 0, NULL));
-			return binary_search_pairs(w, LOC, index / 2, target_LOC);
+			return binary_search_pairs(w, LOC, index / 2, target_LOC, id);
 		}
 	}	
 }
 
 
-void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
+void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat, int id) {
 	unsigned int cpt;
 	struct p_worker p_w;
 	double LOC;
@@ -218,13 +218,13 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 	struct clientDataTask * data = MSG_task_get_data(*task_to_treat);
 	double target_LOC = data->target_LOC;
 
-	xbt_dynar_sort(workers, compare_reputation_workers);
+	xbt_dynar_sort(workers[id], compare_reputation_workers);
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
-	int index = xbt_dynar_length(workers) - 1;
+	int index = xbt_dynar_length(workers[id]) - 1;
 
 	// we search where are the workers with a reputation above 50
-	xbt_dynar_foreach(workers, cpt, p_w) {
+	xbt_dynar_foreach(workers[id], cpt, p_w) {
 		if (p_w.reputation < 50) {
 			index = cpt - 1;
 			complexity += 2.0;
@@ -233,14 +233,14 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 	}
 	complexity = complexity + 3.0 + cpt;
 	
-	printf("value of index %d, length of workers %ld\n", index, xbt_dynar_length(workers));
+	printf("value of index %d, length of workers %ld\n", index, xbt_dynar_length(workers[id]));
 	if (index >= group_formation_min_number - 1) {
 		LOC = 0.0;
 		xbt_dynar_t * w = (xbt_dynar_t *)malloc(sizeof(xbt_dynar_t));			
 		*w = xbt_dynar_new(sizeof(struct p_worker), NULL);	
 
 		// put the first node in the list and then use binary search to find others pairs of nodes
-		xbt_dynar_remove_at(workers, FIRST_ITEM, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], FIRST_ITEM, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);	
 		index--;	
 		printf("value of index %d\n", index);
@@ -249,7 +249,7 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 
 		while ((index >= FIRST_ITEM + 1) && (xbt_dynar_length(*w) < group_formation_max_number)) {
 			// at least 2 workers have a reputation above 50, we could do a binary search to add nodes
-			binary_search_pairs(w, &LOC, index, target_LOC);
+			binary_search_pairs(w, &LOC, index, target_LOC, id);
 			printf("out of binary_search_pairs\n");
 			// after the binary_search_pairs it is sure that we have put two workers on the w array
 			index = index - 2;
@@ -264,12 +264,12 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 			complexity++;
 			// we go out of the while boucle because we find a group whom LOC achieve target_LOC
 			printf("a group of %ld workers is formed with target LOC %f\n", xbt_dynar_length(*w), LOC);
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 		}
 		else if (xbt_dynar_length(*w) >= group_formation_max_number) {
 			printf("a group of %ld workers is formed with target LOC %f, we don't want to be in that case\n", xbt_dynar_length(*w), LOC);
 			complexity += 3.0;
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 		}
 		else if (index < FIRST_ITEM + 1) {
 			// we can't form other group of workers. As the algorithm indicate that if it isn't possible to reach group_formation_target_value we search for the group of workers that permit to be near group_formation_target_value, we add the group to the inactive group too. But we decided to put the workers back to the list named workers		
@@ -278,7 +278,7 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 			long int until = xbt_dynar_length(*w);
 			for (i = 0; i < until; i++) {
 				xbt_dynar_remove_at(*w, FIRST_ITEM, (void *)toAdd);
-				xbt_dynar_push(workers, toAdd);
+				xbt_dynar_push(workers[id], toAdd);
 			}	
 			complexity = complexity + 7.0 + until * 2.0;
 		}
@@ -287,7 +287,7 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat) {
 }
 
 
-void formGroup_random_fit_Sonnek(msg_task_t * task_to_treat) {
+void formGroup_random_fit_Sonnek(msg_task_t * task_to_treat, int id) {
 	int nb_rand;
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
@@ -300,8 +300,8 @@ void formGroup_random_fit_Sonnek(msg_task_t * task_to_treat) {
 	double complexity = 1.0;
 
 	do {
-		nb_rand = rand() % (xbt_dynar_length(workers));
-		xbt_dynar_remove_at(workers, nb_rand, (void *)toAdd);
+		nb_rand = rand() % (xbt_dynar_length(workers[id]));
+		xbt_dynar_remove_at(workers[id], nb_rand, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);
 
 		if (xbt_dynar_length(*w) >= group_formation_min_number) {
@@ -310,11 +310,11 @@ void formGroup_random_fit_Sonnek(msg_task_t * task_to_treat) {
 		}
 
 		complexity += 17.0;
-	} while(((LOC < target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number) || (xbt_dynar_length(*w) % 2 == 0)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers) != 0));
-	if (xbt_dynar_length(workers) == 0) {
+	} while(((LOC < target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number) || (xbt_dynar_length(*w) % 2 == 0)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers[id]) != 0));
+	if (xbt_dynar_length(workers[id]) == 0) {
 		if(((LOC >= target_LOC) && (xbt_dynar_length(*w) >= group_formation_min_number) && (xbt_dynar_length(*w) % 2 != 0)) || ((xbt_dynar_length(*w) == group_formation_max_number) && (xbt_dynar_length(*w) % 2 != 0))) {
 			printf("a group of %ld workers is formed with target LOC %f\n", xbt_dynar_length(*w), LOC);
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 		}
 		else {
 			printf("tried to form a group but failed\n");
@@ -323,7 +323,7 @@ void formGroup_random_fit_Sonnek(msg_task_t * task_to_treat) {
 			long int until = xbt_dynar_length(*w);
 			for (i = 0; i < until; i++) {
 				xbt_dynar_remove_at(*w, FIRST_ITEM, (void *)toAdd);
-				xbt_dynar_push(workers, toAdd);
+				xbt_dynar_push(workers[id], toAdd);
 			}	
 			complexity = complexity + 2.0 + 2.0 * until;			
 		}
@@ -332,7 +332,7 @@ void formGroup_random_fit_Sonnek(msg_task_t * task_to_treat) {
 	else {
 		complexity += 2.0;
 		printf("a group of %ld workers is formed with target LOC %f\n", xbt_dynar_length(*w), LOC);
-		treat_tasks(w, task_to_treat);
+		treat_tasks(w, task_to_treat, id);
 	}
 	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
@@ -371,8 +371,8 @@ double compute_Arantes_PB(xbt_dynar_t *w) {
 }
 
 
-void formGroup_first_fit_Arantes(msg_task_t * task_to_treat) {
-	xbt_dynar_sort(workers, compare_reputation_workers);
+void formGroup_first_fit_Arantes(msg_task_t * task_to_treat, int id) {
+	xbt_dynar_sort(workers[id], compare_reputation_workers);
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
 	struct clientDataTask * data = MSG_task_get_data(*task_to_treat);
@@ -386,7 +386,7 @@ void formGroup_first_fit_Arantes(msg_task_t * task_to_treat) {
 	double complexity = 1.0;
 
 	do {
-		xbt_dynar_remove_at(workers, FIRST_ITEM, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], FIRST_ITEM, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);
 	
 		if (xbt_dynar_length(*w) >= group_formation_min_number) {
@@ -399,10 +399,10 @@ void formGroup_first_fit_Arantes(msg_task_t * task_to_treat) {
 
 		complexity += 11.0;
 
-	} while(((res > target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers) != 0));
-	if (xbt_dynar_length(workers) == 0) {
+	} while(((res > target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers[id]) != 0));
+	if (xbt_dynar_length(workers[id]) == 0) {
 		if (((res <= target_LOC) && (xbt_dynar_length(*w) >= group_formation_min_number)) || (xbt_dynar_length(*w) == group_formation_max_number)) {
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 		}
 		else {
 			// we have to put the workers back to the workers list: we have try to create a group but there isn't quiet workers left permitting to have a good threshold
@@ -411,21 +411,21 @@ void formGroup_first_fit_Arantes(msg_task_t * task_to_treat) {
 			long int until = xbt_dynar_length(*w);
 			for (i = 0; i < until; i++) {
 				xbt_dynar_remove_at(*w, FIRST_ITEM, (void *)toAdd);
-				xbt_dynar_push(workers, toAdd);
+				xbt_dynar_push(workers[id], toAdd);
 			}	
 			complexity = complexity + until * 2.0 + 2.0;			
 		}
 		complexity += 5.0;
 	}
 	else {
-		treat_tasks(w, task_to_treat);
+		treat_tasks(w, task_to_treat, id);
 	}
 	complexity += 2.0;
 	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
-void formGroup_random_fit_Arantes(msg_task_t * task_to_treat) {
+void formGroup_random_fit_Arantes(msg_task_t * task_to_treat, int id) {
 	int nb_rand;
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
@@ -440,8 +440,8 @@ void formGroup_random_fit_Arantes(msg_task_t * task_to_treat) {
 	double complexity = 1.0;
 
 	do {
-		nb_rand = rand() % (xbt_dynar_length(workers));
-		xbt_dynar_remove_at(workers, nb_rand, (void *)toAdd);
+		nb_rand = rand() % (xbt_dynar_length(workers[id]));
+		xbt_dynar_remove_at(workers[id], nb_rand, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);
 
 		if (xbt_dynar_length(*w) >= group_formation_min_number) {
@@ -451,10 +451,10 @@ void formGroup_random_fit_Arantes(msg_task_t * task_to_treat) {
 			complexity += 4.0;
 		}
 		complexity += 14.0;
-	} while(((res > target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers) != 0));
-	if (xbt_dynar_length(workers) == 0) {
+	} while(((res > target_LOC) || (xbt_dynar_length(*w) < group_formation_min_number)) && (xbt_dynar_length(*w) != group_formation_max_number) && (xbt_dynar_length(workers[id]) != 0));
+	if (xbt_dynar_length(workers[id]) == 0) {
 		if(((res <= target_LOC) && (xbt_dynar_length(*w) >= group_formation_min_number)) || (xbt_dynar_length(*w) == group_formation_max_number)) {
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 		}
 		else {
 			// we have to put the workers back to the workers list: we have try to create a group but there isn't quiet workers left permitting to have a good LOC
@@ -462,24 +462,24 @@ void formGroup_random_fit_Arantes(msg_task_t * task_to_treat) {
 			long int until = xbt_dynar_length(*w);
 			for (i = 0; i < until; i++) {
 				xbt_dynar_remove_at(*w, FIRST_ITEM, (void *)toAdd);
-				xbt_dynar_push(workers, toAdd);
+				xbt_dynar_push(workers[id], toAdd);
 			}	
 			complexity = complexity + 2.0 * until + 2.0;			
 		}
 		complexity += 5.0;
 	}
 	else {
-		treat_tasks(w, task_to_treat);
+		treat_tasks(w, task_to_treat, id);
 	}
 	complexity += 2.0;
 }
 
 
-void binary_search_one (xbt_dynar_t * w, double * res, int index, double target_LOC) {
+void binary_search_one (xbt_dynar_t * w, double * res, int index, double target_LOC, int id) {
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
 	if (index == FIRST_ITEM) {
-		xbt_dynar_remove_at(workers, index, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);			
 
 		*res = compute_Arantes_PB(w) / compute_Arantes_PC(w);
@@ -487,7 +487,7 @@ void binary_search_one (xbt_dynar_t * w, double * res, int index, double target_
 		return;
 	}
 	else {	
-		xbt_dynar_remove_at(workers, index, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);	
 
 		*res = compute_Arantes_PB(w) / compute_Arantes_PC(w);
@@ -498,16 +498,16 @@ void binary_search_one (xbt_dynar_t * w, double * res, int index, double target_
 		else {
 			// the added worker doesn't help to achieve the target_LOC. Search for an other worker
 			xbt_dynar_pop(*w, toAdd);
-			xbt_dynar_insert_at(workers, index, toAdd);
+			xbt_dynar_insert_at(workers[id], index, toAdd);
 			
 			MSG_task_execute(MSG_task_create("task_complexity", 9.0, 0, NULL));
-			return binary_search_one(w, res, index / 2, target_LOC);
+			return binary_search_one(w, res, index / 2, target_LOC, id);
 		}
 	}
 }
 
 
-void formGroup_tight_fit_Arantes(msg_task_t * task_to_treat) {
+void formGroup_tight_fit_Arantes(msg_task_t * task_to_treat, int id) {
 	unsigned int cpt;
 	struct p_worker p_w;
 	double complexity = 0.0;
@@ -515,15 +515,15 @@ void formGroup_tight_fit_Arantes(msg_task_t * task_to_treat) {
 	struct clientDataTask * data = MSG_task_get_data(*task_to_treat);
 	double target_LOC = data->target_LOC;
 
-	xbt_dynar_sort(workers, compare_reputation_workers);
+	xbt_dynar_sort(workers[id], compare_reputation_workers);
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 
 	xbt_dynar_t * w;
 
-	int index = xbt_dynar_length(workers) - 1;
+	int index = xbt_dynar_length(workers[id]) - 1;
 
 	// we search where are the workers with a reputation above 50
-	xbt_dynar_foreach(workers, cpt, p_w) {
+	xbt_dynar_foreach(workers[id], cpt, p_w) {
 		if (p_w.reputation < 50) {
 			index = cpt - 1;
 			complexity += 2.0;
@@ -539,14 +539,14 @@ void formGroup_tight_fit_Arantes(msg_task_t * task_to_treat) {
 		*w = xbt_dynar_new(sizeof(struct p_worker), NULL);	
 
 		// put the first node in the list and then use binary search to find other nodes
-		xbt_dynar_remove_at(workers, FIRST_ITEM, (void *)toAdd);
+		xbt_dynar_remove_at(workers[id], FIRST_ITEM, (void *)toAdd);
 		xbt_dynar_push(*w, toAdd);	
 		index--;	
 
 		complexity += 5.0;
 		while (index >= FIRST_ITEM) {
 			// at least 1 worker have a reputation above 50, we could do a binary search to add nodes
-			binary_search_one(w, &res, index, target_LOC);
+			binary_search_one(w, &res, index, target_LOC, id);
 			// after the binary_search_one it is sure that we have put one worker on the w array
 			index--;	
 			complexity += 3.0;	
@@ -561,12 +561,12 @@ void formGroup_tight_fit_Arantes(msg_task_t * task_to_treat) {
 		complexity++;
 		if ((res <= target_LOC) || (xbt_dynar_length(*w) >= group_formation_max_number)) {
 			// we go out of the while boucle because we find a group whom LOC achieve target_LOC
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 		}
 		else if (index < FIRST_ITEM) {
 			// we can't form other group of workers. As the algorithm indicate that if it isn't possible to reach target_LOC we search for the group of workers that permit to be near target_LOC, we add the group to the inactive group too
 			complexity++;
-			treat_tasks(w, task_to_treat);
+			treat_tasks(w, task_to_treat, id);
 		}
 		complexity += 3.0;
 	}

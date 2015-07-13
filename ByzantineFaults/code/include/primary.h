@@ -5,6 +5,8 @@
 #include "worker.h"
 #include "simulator.h"
 
+#define NB_MAX_ACTIVE_PRIMARIES 500
+
 
 // structure of information about tasks (already distributed on workers) processing that a primary keep in memory
 struct p_task {
@@ -44,54 +46,54 @@ struct p_answer_worker {
 };
 
 
-xbt_dynar_t workers;
+xbt_dynar_t workers[NB_MAX_ACTIVE_PRIMARIES];
 
-// list of tasks the primary hasn't distributed yet 
-xbt_fifo_t tasks;
+// list of tasks the primary hasn't distributed yet. Each case of the table corresponds to a fifo of one primary 
+xbt_fifo_t tasks[NB_MAX_ACTIVE_PRIMARIES];
 
-xbt_fifo_t processing_tasks;
+xbt_fifo_t processing_tasks[NB_MAX_ACTIVE_PRIMARIES];
 
-xbt_fifo_t active_groups;
+xbt_fifo_t active_groups[NB_MAX_ACTIVE_PRIMARIES];
 
-xbt_fifo_t additional_replication_tasks; // list of structure struct p_task. A processing task will be put in that list when we need to replicate it but we haven't been able to replicate entirely the task because there aren't enough workers able to execute this task
+xbt_fifo_t additional_replication_tasks[NB_MAX_ACTIVE_PRIMARIES]; // list of structure struct p_task. A processing task will be put in that list when we need to replicate it but we haven't been able to replicate entirely the task because there aren't enough workers able to execute this task
 
-int data_csv[MAXIMUM_NUMBER_PRIMARIES];
+int data_csv[NB_MAX_ACTIVE_PRIMARIES];
 
 
-void tasks_print(void);
+void tasks_print(int id);
 
-void processing_tasks_print(void);
+void processing_tasks_print(int id);
 
 void workers_print(xbt_dynar_t * w);
 
 void groups_print(xbt_fifo_t * f);
 
 // this function permits to find if an element of the dynamic array (passed in argument) has as identifier the name in argument
-struct p_worker * dynar_search(const char * name);
+struct p_worker * dynar_search(const char * name, int id);
 
-void send_finalize_to_workers(void);
+void send_finalize_to_workers(int id);
 
-void add_new_worker(const char * name, char * myMailbox);
+void add_new_worker(const char * name, char * myMailbox, int id);
 
-void put_task_fifo(msg_task_t task);
+void put_task_fifo(msg_task_t task, int id);
 
 xbt_fifo_item_t fifo_supress_item_head(xbt_fifo_t l);
 
 void * fifo_supress_head(xbt_fifo_t l);
 
-void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat);
+void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat, int id);
 
-void try_to_treat_tasks(void);
+void try_to_treat_tasks(int id);
 
-struct p_worker * give_worker_dynar(char * name);
+struct p_worker * give_worker_dynar(char * name, int id);
 
-struct p_worker * give_worker_active_groups(char * name);
+struct p_worker * give_worker_active_groups(char * name, int id);
 
-struct p_worker * give_worker_inactive_groups(char * name);
+struct p_worker * give_worker_inactive_groups(char * name, int id);
 
-void updateReputation(struct p_task * t);
+void updateReputation(struct p_task * t, int id);
 
-void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_name, unsigned long int answer);
+void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_name, unsigned long int answer, int id);
 
 double valueCond2 (struct p_answer_worker * res, struct p_task * p_t);
 
@@ -102,21 +104,21 @@ void writes_data (char * client_name, char * task_name, double time_start_task, 
 
 void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process, int id);
 
-void replication(struct p_task * n);
+void replication(struct p_task * n, int id);
 
 void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value, int id);
 
-int inAdditional_replication_tasks (struct p_task * p_t);
+int inAdditional_replication_tasks (struct p_task * p_t, int id);
 
-void suppress_processing_tasks_and_active_group(struct p_task * n);
+void suppress_processing_tasks_and_active_group(struct p_task * n, int id);
 
-void worker_from_active_group_to_workers(char * name, struct p_task * n, int process);
+void worker_from_active_group_to_workers(char * name, struct p_task * n, int process, int id);
 
-void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process);
+void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process, int id);
 
 void treat_answer(msg_task_t t, int crash, int id);
 
-void try_to_treat_additional_replication(void);
+void try_to_treat_additional_replication(int id);
 
 void treat_crash(msg_task_t task_todo);
 

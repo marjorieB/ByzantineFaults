@@ -31,21 +31,21 @@ int verify (struct p_task * p_t, struct p_worker w) {
 }
 
 
-void find_workers_fixed_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications) {
+void find_workers_fixed_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications, int id) {
 	int nb_rand;
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 	double complexity = 0.0;
 
-	while ((xbt_dynar_length(workers) > 0) && (*nb_replications > 0)) {
-		nb_rand = rand() % (xbt_dynar_length(workers));
-		xbt_dynar_remove_at(workers, nb_rand, (void *)tmp);
+	while ((xbt_dynar_length(workers[id]) > 0) && (*nb_replications > 0)) {
+		nb_rand = rand() % (xbt_dynar_length(workers[id]));
+		xbt_dynar_remove_at(workers[id], nb_rand, (void *)tmp);
 		printf("the node chosen was %s\n", tmp->mailbox);
 		// we need to check if the node wasn't already used for that task
 		if (verify(p_t, *tmp) == 1) {
 			printf("%s haven't already execute this request\n", tmp->mailbox);
 			// we need to put the worker in the active group and to send it the task
 			xbt_dynar_push(*(xbt_dynar_t *)(xbt_fifo_get_item_content(p_t->active_workers)), tmp);
-			groups_print(&active_groups);
+			groups_print(&(active_groups[id]));
 			*nb_replications = *nb_replications - 1;
 			p_t->nb_forwarded++;
 
@@ -112,15 +112,15 @@ double valueCond2_replication (struct p_task * p_t) {
 }
 
 
-void replication_fixed_fit (struct p_task * p_t) {
+void replication_fixed_fit (struct p_task * p_t, int id) {
 	int nb_replications;
 	int i;
 	int nb;
 	double complexity = 0.0;
 
-	workers_print(&workers);
+	workers_print(&(workers[id]));
 	printf("active group\n");
-	groups_print(&active_groups);
+	groups_print(&(active_groups[id]));
 
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 	xbt_dynar_t array_tmp = xbt_dynar_new(sizeof(struct p_worker), NULL);
@@ -141,7 +141,7 @@ void replication_fixed_fit (struct p_task * p_t) {
 		complexity += 5.0;
 	}
 
-	find_workers_fixed_fit(p_t, &array_tmp, &nb_replications);
+	find_workers_fixed_fit(p_t, &array_tmp, &nb_replications, id);
 	printf("after searching in the workers groups\n");
 	
 	if (nb_replications > 0) {
@@ -149,7 +149,7 @@ void replication_fixed_fit (struct p_task * p_t) {
 		p_t->to_replicate = nb_replications;
 		printf("%d \n", p_t->to_replicate);
 		printf("we couldn't satisfy all the replications, we put the task on the additional_replication_tasks queue\n");
-		xbt_fifo_push(additional_replication_tasks, p_t);
+		xbt_fifo_push(additional_replication_tasks[id], p_t);
 		printf("task put in additional_replication_tasks\n");
 		complexity += 2.0;
 	}
@@ -159,24 +159,24 @@ void replication_fixed_fit (struct p_task * p_t) {
 	nb = xbt_dynar_length(array_tmp);
 	for (i = 0; i < nb; i++) {
 		xbt_dynar_pop(array_tmp, tmp);
-		xbt_dynar_push(workers, tmp);
+		xbt_dynar_push(workers[id], tmp);
 	}
-	workers_print(&workers);
+	workers_print(&(workers[id]));
 	complexity = complexity + 1.0 + 2.0 * nb;
 	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
-int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
+int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id) {
 	double complexity = 0.0;
 
 	// sort the array of workers
-	xbt_dynar_sort(workers, compare_reputation_workers);
+	xbt_dynar_sort(workers[id], compare_reputation_workers);
 
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 
-	while (xbt_dynar_length(workers) > 0) {
-		xbt_dynar_remove_at(workers, FIRST_ITEM, (void *)tmp);
+	while (xbt_dynar_length(workers[id]) > 0) {
+		xbt_dynar_remove_at(workers[id], FIRST_ITEM, (void *)tmp);
 		printf("the node chosen is %s\n", tmp->mailbox);
 		// we need to check if the node wasn't already used for that task
 		if (verify(p_t, *tmp) == 1) {
@@ -211,14 +211,14 @@ int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 }
 
 
-double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tmp, int index) {
+double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tmp, int index, int id) {
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 	double ret;
 	double complexity = 0.0;
 
 	if (index == FIRST_ITEM) {
-		xbt_dynar_remove_at(workers, index, (void *)toAdd);
-		workers_print(&workers);
+		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
+		workers_print(&(workers[id]));
 		if (verify (p_t, *toAdd) == -1) {
 			printf("the node %s has already execute the task %s\n", toAdd->mailbox, p_t->task_name);
 			// the node can't be added to execute this task
@@ -242,8 +242,8 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 		}
 	}
 	else {	
-		xbt_dynar_remove_at(workers, index, (void *)toAdd);
-		workers_print(&workers);
+		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
+		workers_print(&(workers[id]));
 		if (verify (p_t, *toAdd) == -1) {
 			printf("the node %s has already execute the task %s\n", toAdd->mailbox, p_t->task_name);
 			// the node can't be added to execute this task
@@ -274,21 +274,21 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 				// the added worker doesn't help to achieve the targetLOC. Search for an other worker
 				xbt_dynar_pop(p_t->additional_workers, NULL);
 				xbt_dynar_pop(p_t->additional_reputations, NULL);
-				xbt_dynar_insert_at(workers, index, toAdd);
+				xbt_dynar_insert_at(workers[id], index, toAdd);
 
 				complexity += 11.0;
 				MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 
-				return binary_search_one_replication(p_t, array_tmp, index / 2);
+				return binary_search_one_replication(p_t, array_tmp, index / 2, id);
 			}
 		}
 	}
 }
 
 
-int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
+int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id) {
 	// sort the array of workers
-	xbt_dynar_sort(workers, compare_reputation_workers);
+	xbt_dynar_sort(workers[id], compare_reputation_workers);
 
 	double complexity = 0.0;
 	double value_res;	
@@ -296,10 +296,10 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 	struct p_worker p_w;
 	int index;
 
-	index = xbt_dynar_length(workers) - 1;
+	index = xbt_dynar_length(workers[id]) - 1;
 
 	// we search where are the workers with a reputation above 50
-	xbt_dynar_foreach(workers, cpt, p_w) {
+	xbt_dynar_foreach(workers[id], cpt, p_w) {
 		if (p_w.reputation < 50) {
 			index = cpt - 1;
 			break;
@@ -307,13 +307,13 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 	}
 	complexity = 3.0 + cpt + 2.0;
 
-	workers_print(&workers);
+	workers_print(&(workers[id]));
 	printf("value of index %d\n", index);
 
 	while (index >= FIRST_ITEM) {
 		// at least 1 worker have a reputation above 50, we could do a binary search to add nodes
 		printf("index %d\n", index); 
-		value_res = binary_search_one_replication(p_t, array_tmp, index);
+		value_res = binary_search_one_replication(p_t, array_tmp, index, id);
 		// after the binary_search_one_replication it is sure that we have suppressed a worker from the array named workers
 		index--;		
 		if (value_res > (1 - p_t->targetLOC)) {
@@ -333,14 +333,14 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 }
 
 
-int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
+int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id) {
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 	int nb_rand;
 	double complexity = 0.0;
 
-	while (xbt_dynar_length(workers) > 0) {
-		nb_rand = rand() % (xbt_dynar_length(workers));
-		xbt_dynar_remove_at(workers, nb_rand, (void *)tmp);
+	while (xbt_dynar_length(workers[id]) > 0) {
+		nb_rand = rand() % (xbt_dynar_length(workers[id]));
+		xbt_dynar_remove_at(workers[id], nb_rand, (void *)tmp);
 		// we need to check if the node wasn't already used for that task
 		if (verify(p_t, *tmp) == 1) {
 			// we need to put the worker in the active group and to send it the task
@@ -372,7 +372,7 @@ int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp) {
 }
 
 
-void replication_others_fit (struct p_task * p_t) {
+void replication_others_fit (struct p_task * p_t, int id) {
 	int ret;
 	int nb; 	
 	int i;
@@ -382,22 +382,22 @@ void replication_others_fit (struct p_task * p_t) {
 	xbt_dynar_t array_tmp = xbt_dynar_new(sizeof(struct p_worker), NULL);
 
 	if (group_formation_strategy == FIRST_FIT) {
-		ret = find_workers_first_fit(p_t, &array_tmp);
+		ret = find_workers_first_fit(p_t, &array_tmp, id);
 		complexity += 2.0;
 	}
 	else if (group_formation_strategy == TIGHT_FIT) {
-		ret = find_workers_tight_fit(p_t, &array_tmp);
+		ret = find_workers_tight_fit(p_t, &array_tmp, id);
 		complexity += 3.0;
 	}
 	else {
-		ret = find_workers_random_fit(p_t, &array_tmp);
+		ret = find_workers_random_fit(p_t, &array_tmp, id);
 		complexity += 3.0;
 	}
 	
 	if (ret == -1) {
 		// there aren't workers available left to execute this task, we need to put it in a fifo with some information about the replications that stay
 		printf("we couldn't satisfy the additional replication. We put the task in the additional replication tasks\n");
-		xbt_fifo_push(additional_replication_tasks, p_t);
+		xbt_fifo_push(additional_replication_tasks[id], p_t);
 		complexity++;
 	}
 
@@ -405,7 +405,7 @@ void replication_others_fit (struct p_task * p_t) {
 	nb = xbt_dynar_length(array_tmp);
 	for (i = 0; i < nb; i++) {
 		xbt_dynar_pop(array_tmp, tmp);
-		xbt_dynar_push(workers, tmp);
+		xbt_dynar_push(workers[id], tmp);
 	}
 	complexity = 3.0 + 2.0 * nb;
 	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));

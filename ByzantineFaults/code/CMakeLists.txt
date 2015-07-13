@@ -3,7 +3,7 @@ PROJECT(MY_BOINC)
 SET(CMAKE_BUILD_TYPE Debug)
 
 SET(SIMGRID_LIB /home/marjo/stage/logiciel/Simgrid_et_co/simgrid/lib CACHE PATH "SimGrid library")
-SET(MY_INCLUDE /home/marjo/stage/logiciel/Simgrid_et_co/projet/include CACHE PATH "my_project include")
+SET(MY_INCLUDE /home/marjo/stage/logiciel/Simgrid_et_co/projet_décentralisé/include CACHE PATH "my_project include")
 SET(MYSQL_LIB /usr/lib/ CACHE PATH "mysql_lib")
 SET(INCLUDE_MYSQL /usr/include/ CACHE PATH "mysql_include")
 SET(SIMGRID_INCLUDE /home/marjo/stage/logiciel/Simgrid_et_co/simgrid/include CACHE PATH "SimGrid include")
@@ -21,6 +21,7 @@ SET(MY_BOINC_SRC
 	src/primary.c
 	src/worker.c
 	src/client.c
+	src/first_primary.c
 )
 
 ADD_EXECUTABLE(my_boinc ${MY_BOINC_SRC})

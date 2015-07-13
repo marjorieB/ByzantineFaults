@@ -6,7 +6,7 @@
 
 
 void ask_to_join(char * mailbox, char * myMailbox) {
-	msg_task_t join = MSG_task_create("joining", 0, 0, myMailbox);
+	msg_task_t join = MSG_task_create("join", 0, sizeof(char) * (strlen(myMailbox) + strlen("join")), myMailbox);
 	MSG_task_send(join, mailbox);
 }
 
@@ -216,6 +216,10 @@ int worker (int argc, char * argv[]) {
 			else if (time_to_wait != 0.0) {
 				// wait until the time where the node recover
 				MSG_process_sleep(time_to_wait);
+				if (centrality == DISTRIBUTED) {
+					// we have to contact the first-primary to join again the system
+					strcpy(primary, argv[3]);
+				}
 				ask_to_join(primary, myMailbox);
 				receive_ack(me, myMailbox);
 			}
