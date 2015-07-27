@@ -52,7 +52,7 @@ void find_workers_fixed_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int *
 			complexity += 4.0;
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_send(to_send, tmp->mailbox);
+			MSG_task_isend(to_send, tmp->mailbox);
 		}
 		else {
 			printf("the node has already been used for this task we put it in array_tmp\n");
@@ -188,7 +188,7 @@ int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id
 			xbt_dynar_push(p_t->additional_reputations, &(tmp->reputation));
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_send(to_send, tmp->mailbox);
+			MSG_task_isend(to_send, tmp->mailbox);
 
 			complexity += 11.0;
 			if (valueCond2_replication(p_t) > (1 - p_t->targetLOC)) {
@@ -236,7 +236,7 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 			MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_send(to_send, toAdd->mailbox);
+			MSG_task_isend(to_send, toAdd->mailbox);
 
 			return valueCond2_replication(p_t);
 		}
@@ -266,7 +266,7 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 				MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 
 				msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-				MSG_task_send(to_send, toAdd->mailbox);
+				MSG_task_isend(to_send, toAdd->mailbox);
 
 				return ret;
 			}
@@ -352,7 +352,7 @@ int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int i
 			complexity += 14.0;
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_send(to_send, tmp->mailbox);
+			MSG_task_isend(to_send, tmp->mailbox);
 
 			if (valueCond2_replication(p_t) > (1 - p_t->targetLOC)) {
 				MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));

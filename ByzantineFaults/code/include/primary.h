@@ -5,7 +5,33 @@
 #include "worker.h"
 #include "simulator.h"
 
+
 #define NB_MAX_ACTIVE_PRIMARIES 500
+
+
+struct reputations_primary {
+	char max_reputation;
+	char min_reputation;
+	char value;
+};
+
+struct reputations_loadBalancing {
+	char max_reputation;
+	char min_reputation;
+	char mailbox[MAILBOX_SIZE];
+};
+
+struct loadBalancing {
+	xbt_dynar_t workersToSend;
+	char min_reputation;
+	char value;
+};
+
+struct fusion {
+	xbt_dynar_t workersToSend;
+	char max;
+	char min;
+};
 
 
 // structure of information about tasks (already distributed on workers) processing that a primary keep in memory
@@ -45,19 +71,33 @@ struct p_answer_worker {
 	unsigned int long answer;
 };
 
+char first_primary_name[MAILBOX_SIZE];
 
-xbt_dynar_t workers[NB_MAX_ACTIVE_PRIMARIES];
+struct reputations_primary * reputations_primary;
+
+xbt_dynar_t * workers;
 
 // list of tasks the primary hasn't distributed yet. Each case of the table corresponds to a fifo of one primary 
-xbt_fifo_t tasks[NB_MAX_ACTIVE_PRIMARIES];
+xbt_fifo_t * tasks;
 
-xbt_fifo_t processing_tasks[NB_MAX_ACTIVE_PRIMARIES];
+xbt_fifo_t * processing_tasks;
 
-xbt_fifo_t active_groups[NB_MAX_ACTIVE_PRIMARIES];
+xbt_fifo_t * active_groups;
 
-xbt_fifo_t additional_replication_tasks[NB_MAX_ACTIVE_PRIMARIES]; // list of structure struct p_task. A processing task will be put in that list when we need to replicate it but we haven't been able to replicate entirely the task because there aren't enough workers able to execute this task
+xbt_fifo_t * additional_replication_tasks; // list of structure struct p_task. A processing task will be put in that list when we need to replicate it but we haven't been able to replicate entirely the task because there aren't enough workers able to execute this task
 
-int data_csv[NB_MAX_ACTIVE_PRIMARIES];
+xbt_dynar_t * to_change_primary;
+
+int * data_csv;
+
+char * able_to_send_division;
+
+char * able_to_send_fusion;
+
+struct loadBalancing ** toSend_loadBalancing;
+
+char * doing_fusion;
+
 
 
 void tasks_print(int id);
@@ -75,6 +115,8 @@ void send_finalize_to_workers(int id);
 
 void add_new_worker(const char * name, char * myMailbox, int id);
 
+void add_new_worker_change(msg_task_t task, char * myMailbox, int id);
+
 void put_task_fifo(msg_task_t task, int id);
 
 xbt_fifo_item_t fifo_supress_item_head(xbt_fifo_t l);
@@ -83,7 +125,7 @@ void * fifo_supress_head(xbt_fifo_t l);
 
 void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat, int id);
 
-void try_to_treat_tasks(int id);
+void try_to_treat_tasks(char * myMailbox, int id);
 
 struct p_worker * give_worker_dynar(char * name, int id);
 
@@ -123,6 +165,36 @@ void try_to_treat_additional_replication(int id);
 void treat_crash(msg_task_t task_todo);
 
 char * compute_name_file (int id);
+
+void send_change(int id);
+
+void try_load_balancing_random_overload (int id, char * mailbox);
+
+void try_load_balancing_reputation_overload (int id, char * mailbox);
+
+void try_load_balancing_overload(int id, char * mailbox);
+
+void stop_division (int id);
+
+void treat_division_overload(msg_task_t task, int id);
+
+void stop_division (int id);
+
+void stop_fusion(int id);
+
+void treat_division_overload(msg_task_t task, int id);
+
+void treat_give_workers(msg_task_t task, int id, char * mailbox);
+
+void forward_to_first_primary(msg_task_t task);
+
+void execute_fusion (int id);
+
+void update_limit_max (msg_task_t task, int id);
+
+void update_limit_min(msg_task_t task, int id);
+
+void destroy_content_fifo(xbt_fifo_t * f);
 
 int primary (int argc, char * argv[]);
 

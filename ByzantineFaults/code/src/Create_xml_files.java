@@ -11,16 +11,16 @@ import java.util.Random;
 public class Create_xml_files {
 	
 	
-	public static void create_xml_deployement(Connection conn, int nb_workers, int nb_clients, int nb_primaries) {
+	public static void create_xml_deployement(Connection conn, int nb_workers, int nb_clients, int nb_primaries, String directory) {
 		FileWriter fw = null;
 		
 		try {
 			// create the header
 			if (nb_primaries == 1) {
-				fw = new FileWriter ("/home/marjo/stage/logiciel/Simgrid_et_co/projet/platforms/deployement_centralized_" + nb_workers + "workers_" + nb_clients + "clients.xml");
+				fw = new FileWriter (directory + "/deployement_centralized_" + nb_workers + "workers_" + nb_clients + "clients.xml");
 			}
 			else {
-				fw = new FileWriter ("/home/marjo/stage/logiciel/Simgrid_et_co/projet/platforms/deployement_distributed_" + nb_primaries + "primaries_" + nb_workers + "workers_" + nb_clients + "clients.xml");
+				fw = new FileWriter (directory + "/deployement_distributed_" + nb_primaries + "primaries_" + nb_workers + "workers_" + nb_clients + "clients.xml");
 			}
 			fw.write("<?xml version='1.0'?>\n");
 			fw.write("<!DOCTYPE platform SYSTEM \"http://simgrid.gforge.inria.fr/simgrid.dtd\">\n");
@@ -42,6 +42,7 @@ public class Create_xml_files {
 				for (int i = 0; i < nb_primaries; i++) {
 					fw.write("\t<process host=\"primary" + i + "\" function=\"primary\">\n");
 					fw.write("\t\t<argument value=\"" + i + "\"/> <!-- id of the primary -->\n");
+					fw.write("\t\t<argument value=\"first-primary-0\"/> <!-- name of the first-primary -->\n");
 					fw.write("\t</process>\n");
 				}				
 			}
@@ -119,17 +120,17 @@ public class Create_xml_files {
 		
 	}
 	
-	public static void create_xml_platform(Connection conn, int nb_workers, int nb_clients, int nb_primaries) {
+	public static void create_xml_platform(Connection conn, int nb_workers, int nb_clients, int nb_primaries, String directory) {
 		FileWriter fw = null;
 		int nb_route = 0;
 		
 		try {
 			// create the new file
 			if (nb_primaries == 1) {
-				fw = new FileWriter ("/home/marjo/stage/logiciel/Simgrid_et_co/projet/platforms/platform_centralized_" + nb_workers + "workers_" + nb_clients + "clients.xml");
+				fw = new FileWriter (directory + "/platform_centralized_" + nb_workers + "workers_" + nb_clients + "clients.xml");
 			}
 			else {
-				fw = new FileWriter ("/home/marjo/stage/logiciel/Simgrid_et_co/projet/platforms/platform_distributed_" + nb_primaries + "primaries_" + nb_workers + "workers_" + nb_clients + "clients.xml");
+				fw = new FileWriter (directory + "/platform_distributed_" + nb_primaries + "primaries_" + nb_workers + "workers_" + nb_clients + "clients.xml");
 			}
 			// write the header
 			fw.write("<?xml version='1.0'?>\n");
@@ -174,7 +175,7 @@ public class Create_xml_files {
 			}
 			else {
 				// create the links of the system
-				for (int i = 0; i < nb_clients + nb_workers + nb_primaries + nb_clients * nb_primaries + nb_workers * nb_primaries; i++) {
+				for (int i = 0; i < nb_clients + nb_workers + nb_primaries + nb_clients * nb_primaries + nb_workers * nb_primaries + ((nb_primaries * (nb_primaries - 1)) / 2); i++) {
 					fw.write("\t\t<link id=\"link" + i +"\" bandwidth=\"7.24MBps\" latency=\"0.004\"/>\n");
 				}
 			}
@@ -202,7 +203,7 @@ public class Create_xml_files {
 			else {
 				// create the routes of the system (to client towards first-primary)
 				for (int i = 0; i < nb_clients; i++) {
-					fw.write("\t\t<route src=\"client" + i + "\" dst=\"fisrt-primary0\" symmetrical=\"YES\">\n");
+					fw.write("\t\t<route src=\"client" + i + "\" dst=\"first-primary0\" symmetrical=\"YES\">\n");
 					fw.write("\t\t\t<link_ctn id=\"link" + nb_route + "\"/>\n");
 					fw.write("\t\t</route>\n");
 					
@@ -213,7 +214,7 @@ public class Create_xml_files {
 				
 				// create the routes of the system (to first-primary towards primaries)
 				for (int i = 0; i < nb_primaries; i++) {
-					fw.write("\t\t<route src=\"primary" + i + "\" dst=\"fisrt-primary0\" symmetrical=\"YES\">\n");
+					fw.write("\t\t<route src=\"primary" + i + "\" dst=\"first-primary0\" symmetrical=\"YES\">\n");
 					fw.write("\t\t\t<link_ctn id=\"link" + nb_route + "\"/>\n");
 					fw.write("\t\t</route>\n");
 					
@@ -252,6 +253,20 @@ public class Create_xml_files {
 						nb_route++;
 					}				
 				}
+				// create the routes of the system (to primaries towards primaries)
+				for (int i = 0; i < nb_primaries; i++) {
+					for (int j = i + 1; j < nb_primaries; j++) {
+						if (i != j) {
+							fw.write("\t\t<route src=\"primary" + j + "\" dst=\"primary" + i + "\" symmetrical=\"YES\">\n");
+							fw.write("\t\t\t<link_ctn id=\"link" + nb_route + "\"/>\n");
+							fw.write("\t\t</route>\n");
+							
+							nb_route++;
+						}
+					}
+				}
+				
+				
 			}
 			
 			fw.write("\n");
@@ -271,28 +286,30 @@ public class Create_xml_files {
 		int nb_clients = 0;
 		int nb_primaries = 1;
 		
-		if (args.length < 3) {
+		if (args.length < 5) {
+			System.out.println("you need to indicate the databse you want to use to retrieve informations");
 			System.out.println("you need to indicate whether you want to simulate a CENTRALIZED or a DISTRIBUTED system");
 			System.out.println("you need to indicate the maximum number of workers you want in the system.");
 			System.out.println("you need to indicate the number of clients you want in the system.");
+			System.out.println("you need to indicate the directory in which you want the xml files been written");
 			return;			
 		}
 		
-		if (args[0].equals("DISTRIBUTED")) {
-			if (args.length != 4) {
+		if (args[1].equals("DISTRIBUTED")) {
+			if (args.length != 6) {
 				System.out.println("you need to indicate the number of primaries you want in the system");
 				return;
 			}
-			nb_primaries = Integer.parseInt(args[3]);
+			nb_primaries = Integer.parseInt(args[4]);
 		}
 		
-		nb_clients = Integer.parseInt(args[2]);
+		nb_clients = Integer.parseInt(args[3]);
 		
 		try {
 			Class.forName("com.mysql.jdbc.Driver").newInstance();
 
 			// to replace with the database boinc (traces of seti@home)
-			String url = "jdbc:mysql://localhost/test";
+			String url = "jdbc:mysql://localhost/" + args[0];
 			String user = "marjo";
 			String passwd = "marjo";
 			
@@ -304,20 +321,27 @@ public class Create_xml_files {
 
 		    while(rs.next()){
 		    	nb_workers = rs.getInt(1);
-		    	System.out.println("number of workers wanted " + Integer.parseInt(args[1]));
+		    	System.out.println("number of workers wanted " + Integer.parseInt(args[2]));
 		    	System.out.println("number of workers available " + nb_workers);
 		    
-		    	if (Integer.parseInt(args[1]) > nb_workers) {
-		    		System.out.println("We only be able to have " + nb_workers + " in the system");
+		    	if (Integer.parseInt(args[2]) > nb_workers) {
+		    		System.out.println("We only be able to have " + nb_workers + " workers in the system");
 		    	}
 		    	else {
-		    		nb_workers = Integer.parseInt(args[1]);
+		    		nb_workers = Integer.parseInt(args[2]);
 		    	}
 		    }
 		    
-		    create_xml_deployement(conn, nb_workers, nb_clients, nb_primaries);
-		    
-		    create_xml_platform(conn, nb_workers, nb_clients, nb_primaries);	
+		    if (args[1].equals("DISTRIBUTED")) {
+			    create_xml_deployement(conn, nb_workers, nb_clients, nb_primaries, args[5]);
+			    
+			    create_xml_platform(conn, nb_workers, nb_clients, nb_primaries, args[5]);	
+			}
+			else {
+				 create_xml_deployement(conn, nb_workers, nb_clients, nb_primaries, args[4]);
+				    
+				 create_xml_platform(conn, nb_workers, nb_clients, nb_primaries, args[4]);
+			}
 			
 		} catch (Exception e) {
 			e.printStackTrace();

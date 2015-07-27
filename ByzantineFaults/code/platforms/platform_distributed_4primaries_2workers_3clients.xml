@@ -1,0 +1,148 @@
+<?xml version='1.0'?>
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid.dtd">
+<platform version="3">
+
+	<config id="general">
+		 <prop id="network/model" value="LV08"/>
+	</config>
+	<AS id="AS0" routing="Full">
+
+		<host id="first-primary0" power="2000000000"/>
+
+		<host id="primary0" power="2000000000"/>
+
+		<host id="primary1" power="2000000000"/>
+
+		<host id="primary2" power="2000000000"/>
+
+		<host id="primary3" power="2000000000"/>
+
+		<host id="client0" power="2000000000"/>
+		<host id="client1" power="2000000000"/>
+		<host id="client2" power="2000000000"/>
+
+		<host id="worker0" power="2000000000"/>
+		<host id="worker1" power="2000000000"/>
+
+		<link id="link0" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link1" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link2" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link3" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link4" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link5" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link6" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link7" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link8" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link9" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link10" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link11" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link12" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link13" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link14" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link15" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link16" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link17" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link18" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link19" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link20" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link21" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link22" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link23" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link24" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link25" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link26" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link27" bandwidth="7.24MBps" latency="0.004"/>
+		<link id="link28" bandwidth="7.24MBps" latency="0.004"/>
+
+		<route src="client0" dst="fisrt-primary0" symmetrical="YES">
+			<link_ctn id="link0"/>
+		</route>
+		<route src="client1" dst="fisrt-primary0" symmetrical="YES">
+			<link_ctn id="link1"/>
+		</route>
+		<route src="client2" dst="fisrt-primary0" symmetrical="YES">
+			<link_ctn id="link2"/>
+		</route>
+
+		<route src="primary0" dst="fisrt-primary0" symmetrical="YES">
+			<link_ctn id="link3"/>
+		</route>
+		<route src="primary1" dst="fisrt-primary0" symmetrical="YES">
+			<link_ctn id="link4"/>
+		</route>
+		<route src="primary2" dst="fisrt-primary0" symmetrical="YES">
+			<link_ctn id="link5"/>
+		</route>
+		<route src="primary3" dst="fisrt-primary0" symmetrical="YES">
+			<link_ctn id="link6"/>
+		</route>
+
+		<route src="worker0" dst="first-primary0" symmetrical="YES">
+			<link_ctn id="link7"/>
+		</route>
+		<route src="worker1" dst="first-primary0" symmetrical="YES">
+			<link_ctn id="link8"/>
+		</route>
+		<route src="client0" dst="primary0" symmetrical="YES">
+			<link_ctn id="link9"/>
+		</route>
+		<route src="client1" dst="primary0" symmetrical="YES">
+			<link_ctn id="link10"/>
+		</route>
+		<route src="client2" dst="primary0" symmetrical="YES">
+			<link_ctn id="link11"/>
+		</route>
+		<route src="client0" dst="primary1" symmetrical="YES">
+			<link_ctn id="link12"/>
+		</route>
+		<route src="client1" dst="primary1" symmetrical="YES">
+			<link_ctn id="link13"/>
+		</route>
+		<route src="client2" dst="primary1" symmetrical="YES">
+			<link_ctn id="link14"/>
+		</route>
+		<route src="client0" dst="primary2" symmetrical="YES">
+			<link_ctn id="link15"/>
+		</route>
+		<route src="client1" dst="primary2" symmetrical="YES">
+			<link_ctn id="link16"/>
+		</route>
+		<route src="client2" dst="primary2" symmetrical="YES">
+			<link_ctn id="link17"/>
+		</route>
+		<route src="client0" dst="primary3" symmetrical="YES">
+			<link_ctn id="link18"/>
+		</route>
+		<route src="client1" dst="primary3" symmetrical="YES">
+			<link_ctn id="link19"/>
+		</route>
+		<route src="client2" dst="primary3" symmetrical="YES">
+			<link_ctn id="link20"/>
+		</route>
+		<route src="worker0" dst="primary0" symmetrical="YES">
+			<link_ctn id="link21"/>
+		</route>
+		<route src="worker1" dst="primary0" symmetrical="YES">
+			<link_ctn id="link22"/>
+		</route>
+		<route src="worker0" dst="primary1" symmetrical="YES">
+			<link_ctn id="link23"/>
+		</route>
+		<route src="worker1" dst="primary1" symmetrical="YES">
+			<link_ctn id="link24"/>
+		</route>
+		<route src="worker0" dst="primary2" symmetrical="YES">
+			<link_ctn id="link25"/>
+		</route>
+		<route src="worker1" dst="primary2" symmetrical="YES">
+			<link_ctn id="link26"/>
+		</route>
+		<route src="worker0" dst="primary3" symmetrical="YES">
+			<link_ctn id="link27"/>
+		</route>
+		<route src="worker1" dst="primary3" symmetrical="YES">
+			<link_ctn id="link28"/>
+		</route>
+
+	</AS>
+</platform>

@@ -1,8 +1,8 @@
 To launch the simulator some previous steps must be done:
 
 1) create the xml for the platform and the deployment file. To do this:
-javac Create_xml_files_centralised.java
-java Create_xml_files_centralised nb_workers nb_clients
+javac Create_xml_files.java
+java Create_xml_files nb_workers nb_clients
 
 The maximum number of workers is 226208. (the traces that permits to create our xml file correspond to trace of seti@home during 1,5 years, and there are only 226208 nodes present in it).
 

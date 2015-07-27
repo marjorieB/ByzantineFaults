@@ -9,6 +9,8 @@ double combination (int a, int b);
 
 int compare_reputation_workers (const void * w_a, const void * w_b);
 
+int compare_reputation_workers_inverse (const void * w_a, const void * w_b);
+
 double compute_LOC(xbt_dynar_t * w); 
 
 void formGroup_fixed_fit(msg_task_t * task_to_treat, int id);

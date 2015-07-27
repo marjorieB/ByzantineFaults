@@ -5,6 +5,7 @@
 
 struct clientDataTask {
 	char mailbox[MAILBOX_SIZE];
+	double rangeReputationPrimaryToRequest;
 	double target_LOC;
 	double start_time;
 };

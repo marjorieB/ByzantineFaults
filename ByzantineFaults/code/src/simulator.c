@@ -2,6 +2,7 @@
 #include "primary.h"
 #include "worker.h"
 #include "client.h"
+#include "first_primary.h"
 #include "simulator.h"
 #include <math.h>
 #include <unistd.h>
@@ -69,7 +70,7 @@ void fill_workers_presence_array(char * file_database) {
 		}
 	} 
 
-	print_workers_presence();
+	//print_workers_presence();
 }
 
 
@@ -77,6 +78,7 @@ int main (int argc, char * argv[]) {
 	int index = 1;
 	char dep_file[FILE_NAME_SIZE];
 	char plat_file[FILE_NAME_SIZE];
+	int i;
 
 	if (argc < 9) {
 		printf("you are using a simulator simulating a probabilistic centralised replication algorithm\n");
@@ -103,6 +105,7 @@ int main (int argc, char * argv[]) {
 	index++;
 	if ((nb_workers = atoi(argv[index])) == 0) {
 		printf("the parameter %d must be the number of workers you want in the systems\n", index);
+		exit(1);
 	}
 	index++;	
 	strcpy(dep_file, argv[index]);
@@ -124,6 +127,27 @@ int main (int argc, char * argv[]) {
 		}
 		else {
 			printf("when chosing DISTRIBUTED, the parameter %d must have the value RANDOM or REPUTATIONS\n", index);
+			exit(1);	
+		}
+		index++;
+		if ((nb_primaries = atoi(argv[index])) == 0) {
+			printf("the parameter %d must be the maximum number of primaries present in the system\n", index);
+			exit(1);
+		}
+		index++;
+		if ((number_workers_too_high = atoi(argv[index])) == 0) {
+			printf("the parameter %d must be the number of workers you want each primary handles before executing the load balancing function\n", index);
+			exit(1);
+		}
+		index++;
+		if (!strcmp(argv[index], "BLACKLIST")) {
+			blacklist = BLACKLIST;
+		}
+		else if (!strcmp(argv[index], "NO_BLACKLIST")) {
+			blacklist = NO_BLACKLIST;
+		}	
+		else {
+			printf("when chosing DISTRIBUTED, the parameter %d must have the value BLACKLIST or NO_BLACKLIST\n", index);
 			exit(1);	
 		}
 	}
@@ -236,11 +260,33 @@ int main (int argc, char * argv[]) {
 		else {
 			printf("the parameter %d must have the value ARANTES_REPLICATION, ITERATIVE_REDUNDANCY or PROGRESSIVE_REDUNDANCY\n", index);
 		}
+	}	
+
+	//nb_primaries = NB_MAX_ACTIVE_PRIMARIES;
+
+	// allocate arrays and fifo for the primaries of the system
+	workers = (xbt_dynar_t *) malloc(sizeof(xbt_dynar_t) * nb_primaries);
+	tasks = (xbt_fifo_t *) malloc(sizeof(xbt_fifo_t) * nb_primaries);
+	processing_tasks = (xbt_fifo_t *) malloc(sizeof(xbt_fifo_t) * nb_primaries);
+	active_groups = (xbt_fifo_t *) malloc(sizeof(xbt_fifo_t) * nb_primaries);
+	additional_replication_tasks = (xbt_fifo_t *) malloc(sizeof(xbt_fifo_t) * nb_primaries);
+	to_change_primary = (xbt_dynar_t *) malloc(sizeof(xbt_dynar_t) * nb_primaries);
+	data_csv = (int *) malloc(sizeof(int) * nb_primaries);
+	reputations_primary = (struct reputations_primary *) malloc(sizeof(struct reputations_primary));
+	able_to_send_division = (char *) malloc(sizeof(char) * nb_primaries);
+	able_to_send_fusion = (char *) malloc(sizeof(char) * nb_primaries);
+	toSend_loadBalancing = (struct loadBalancing **) malloc(sizeof(struct loadBalancing *) * nb_primaries);
+	doing_fusion = (char *) malloc(sizeof(char) * nb_primaries);
+
+	for (i = 0; i < nb_primaries; i++) {
+		able_to_send_division[i] = 1;
+		able_to_send_fusion[i] = -1;
+		doing_fusion[i] = -1;
+		toSend_loadBalancing[i] = (struct loadBalancing *) malloc(sizeof(struct loadBalancing));
 	}
 
 	fill_workers_presence_array(argv[1]);
 
-	printf("here\n");
 	// running the simulation
 	msg_error_t res = MSG_OK;
 
@@ -250,16 +296,34 @@ int main (int argc, char * argv[]) {
 	MSG_function_register("primary", primary);
 	MSG_function_register("worker", worker);
 
+	if (centrality == DISTRIBUTED) {
+		MSG_function_register("first_primary", first_primary);
+	}
+
 	MSG_create_environment(plat_file);
 	MSG_launch_application(dep_file);
-	printf("and here\n");
 
 	res = MSG_main();
 
 	if (res == MSG_OK) {
+		printf("no problem\n");
 		return 0;
 	}
 	else {
+		printf("problem\n");
 		return 1;
 	}
+
+	free(workers);
+	free(tasks);
+	free(processing_tasks);
+	free(active_groups);
+	free(additional_replication_tasks);
+	free(to_change_primary);
+	free(data_csv);
+	free(reputations_primary);
+	free(able_to_send_division);
+	free(able_to_send_fusion);
+	free(toSend_loadBalancing);
+	free(doing_fusion);
 }

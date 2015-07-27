@@ -7,7 +7,7 @@
 
 void ask_to_join(char * mailbox, char * myMailbox) {
 	msg_task_t join = MSG_task_create("join", 0, sizeof(char) * (strlen(myMailbox) + strlen("join")), myMailbox);
-	MSG_task_send(join, mailbox);
+	MSG_task_isend(join, mailbox);
 }
 
 
@@ -19,6 +19,7 @@ void receive_ack(struct worker * worker, char * myMailbox) {
 	xbt_assert(res == MSG_OK, "MSG_task_receive failed on worker");
 
 	strcpy(worker->primary, (char *)MSG_task_get_data(ack));
+	printf("%s: receive a ack from %s\n", myMailbox, worker->primary);
 
 	MSG_task_destroy(ack);
 }
@@ -138,7 +139,7 @@ double treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) 
 		printf("error in the function \"present\"\n");
 	}
 
-	MSG_task_send(answer, me->primary);
+	MSG_task_isend(answer, me->primary);
 
 	return time_to_wait;
 }
@@ -153,8 +154,6 @@ int worker (int argc, char * argv[]) {
 	if (argc != 5) {
 		exit(1);
 	}
-
-	srand(me->id + MSG_get_clock());
 //	printf("worker : before reading\n");
 
 	// the worker ask to join the system, then wait for an acknowledgement from the primary and then wait for request to treat
@@ -163,6 +162,8 @@ int worker (int argc, char * argv[]) {
 	me->index = atoi(argv[2]);
 	strcpy(primary, argv[3]);
 	me->reputation = atoi(argv[4]);
+
+	srand(time(NULL) * me->id + MSG_get_clock());
 
 //	printf("worker : after reading\n");
 
@@ -224,6 +225,18 @@ int worker (int argc, char * argv[]) {
 				receive_ack(me, myMailbox);
 			}
 		}	
+		else if (!strncmp(MSG_task_get_name(task), "ejected", strlen("ejected") * sizeof(char))) {
+			ask_to_join(primary, myMailbox);
+			receive_ack(me, myMailbox);
+			MSG_task_destroy(task);
+			task = NULL;
+		}
+	/*	else if (!strncmp(MSG_task_get_name(task), "ackchange", strlen("ackchange") * sizeof(char))) {
+			strcpy(me->primary, (char *)MSG_task_get_data(task));
+			printf("%s: I receive a ackchange from %s\n", myMailbox, me->primary);
+			MSG_task_destroy(task);
+			task = NULL;
+		} */
 		else {
 			// message incorrect
 			printf("%s message incorrect\n", myMailbox);

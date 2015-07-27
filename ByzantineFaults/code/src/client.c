@@ -18,22 +18,26 @@ void send_task(int i, char * mailbox, char * myMailbox) {
 	if (i == 0) {
 		if (simulator == ARANTES) {
 			data->target_LOC = 1.0;	
+			data->rangeReputationPrimaryToRequest = 1.0;
 		}
 		else {
 			data->target_LOC = 0.5;	
+			data->rangeReputationPrimaryToRequest = 0.5;
 		}
 	}
 	else {
 		if (simulator == ARANTES) {
 			data->target_LOC = 0.1;
+			data->rangeReputationPrimaryToRequest = 0.1;
 		}
 		else {
 			data->target_LOC = 0.90;
+			data->rangeReputationPrimaryToRequest = 0.90;
 		}
 	}
 	data->start_time = MSG_get_clock();
 	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, data);
-	MSG_task_send(task, mailbox);
+	MSG_task_isend(task, mailbox);
 }
 
 
@@ -65,6 +69,7 @@ void send_finalize(char * mailbox) {
 
 
 int client (int argc, char * argv[]) {
+	printf("starting client\n");
 	int i;
 	unsigned long int id;
 	int nb_requests;
@@ -82,7 +87,11 @@ int client (int argc, char * argv[]) {
 	// the name of the primary is known by the client
 	strcpy(primary, argv[2]);
 
+	srand(time(NULL) * id + MSG_get_clock());
+
 	for (i = 0; i < nb_requests; i++) {
+		MSG_process_sleep(((double)(rand () % 10001)) / 1000.0);
+		
 		//send a request to the primary
 		send_task(i, primary, myMailbox);		
 

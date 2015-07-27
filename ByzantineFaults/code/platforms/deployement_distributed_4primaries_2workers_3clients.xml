@@ -1,0 +1,39 @@
+<?xml version='1.0'?>
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid.dtd">
+<platform version="3">
+
+	<process host="first-primary0" function="first_primary">
+		<argument value="0"/> <!-- id of the first-primary -->
+		<argument value="3"/> <!-- number of clients -->
+	</process>
+
+	<process host="primary0" function="primary">
+		<argument value="0"/> <!-- id of the primary -->
+		<argument value="first-primary-0"/> <!-- name of the first-primary -->
+	</process>
+	<process host="primary1" function="primary">
+		<argument value="1"/> <!-- id of the primary -->
+		<argument value="first-primary-0"/> <!-- name of the first-primary -->
+	</process>
+	<process host="primary2" function="primary">
+		<argument value="2"/> <!-- id of the primary -->
+		<argument value="first-primary-0"/> <!-- name of the first-primary -->
+	</process>
+	<process host="primary3" function="primary">
+		<argument value="3"/> <!-- id of the primary -->
+		<argument value="first-primary-0"/> <!-- name of the first-primary -->
+	</process>
+
+	<process host="client0" function="client">
+		<argument value="0"/> <!-- id of the client -->
+		<argument value="first-primary-0"/> <!-- name of the first-primary -->
+	</process>
+	<process host="client1" function="client">
+		<argument value="1"/> <!-- id of the client -->
+		<argument value="first-primary-0"/> <!-- name of the first-primary -->
+	</process>
+	<process host="client2" function="client">
+		<argument value="2"/> <!-- id of the client -->
+		<argument value="first-primary-0"/> <!-- name of the first-primary -->
+	</process>
+

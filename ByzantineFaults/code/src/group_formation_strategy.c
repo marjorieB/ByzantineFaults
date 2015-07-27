@@ -25,6 +25,25 @@ int compare_reputation_workers (const void * w_a, const void * w_b) {
 	}
 }
 
+int compare_reputation_workers_inverse (const void * w_a, const void * w_b) {
+	struct p_worker p_w_a = *(struct p_worker *) w_a;
+	struct p_worker p_w_b = *(struct p_worker *) w_b;
+
+	if (p_w_a.reputation > p_w_b.reputation) {
+		MSG_task_execute(MSG_task_create("task_complexity", 1.0, 0, NULL));
+		return 1;
+	}
+	else if (p_w_a.reputation < p_w_b.reputation) {
+		MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+		return -1;
+	}
+	else {
+		MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+		return 0;
+	}
+}
+
+
 
 long int factorial (int n) {
 	int i;	
@@ -150,7 +169,7 @@ void formGroup_first_fit_Sonnek(msg_task_t * task_to_treat, int id) {
 			printf("a group of %ld workers is formed with target LOC %f\n", xbt_dynar_length(*w), LOC);
 		}
 		else {
-			printf("tried to form a group but failed\n");
+			printf("tried to form a group but failed %f\n", LOC);
 			// we have to put the workers back to the workers list: we have try to create a group but there isn't quiet workers left permitting to have a good LOC
 			int i;
 			long int until = xbt_dynar_length(*w);
@@ -273,7 +292,7 @@ void formGroup_tight_fit_Sonnek(msg_task_t * task_to_treat, int id) {
 		}
 		else if (index < FIRST_ITEM + 1) {
 			// we can't form other group of workers. As the algorithm indicate that if it isn't possible to reach group_formation_target_value we search for the group of workers that permit to be near group_formation_target_value, we add the group to the inactive group too. But we decided to put the workers back to the list named workers		
-			printf("tried to form a group but failed\n");
+			printf("tried to form a group but failed %f\n", LOC);
 			int i;
 			long int until = xbt_dynar_length(*w);
 			for (i = 0; i < until; i++) {
@@ -317,7 +336,7 @@ void formGroup_random_fit_Sonnek(msg_task_t * task_to_treat, int id) {
 			treat_tasks(w, task_to_treat, id);
 		}
 		else {
-			printf("tried to form a group but failed\n");
+			printf("tried to form a group but failed %f\n", LOC);
 			// we have to put the workers back to the workers list: we have try to create a group but there isn't quiet workers left permitting to have a good LOC
 			int i;
 			long int until = xbt_dynar_length(*w);
