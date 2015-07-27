@@ -2,6 +2,7 @@
 #include "task.h"
 #include "client.h"
 #include "simulator.h"
+#include "primary.h"
 #include <time.h>
 
 // this function permit to send to the node "mailbox" the task number i
@@ -15,28 +16,43 @@ void send_task(int i, char * mailbox, char * myMailbox) {
 	sprintf(task_name, "task-%d", i);
 	strcpy(data->mailbox, myMailbox); 
 
-	if (i == 0) {
+	if (nb_workers_for_stationary < stationary_regime) {
 		if (simulator == ARANTES) {
 			data->target_LOC = 1.0;	
 			data->rangeReputationPrimaryToRequest = 1.0;
 		}
 		else {
-			data->target_LOC = 0.5;	
+			data->target_LOC = 0.3;	
 			data->rangeReputationPrimaryToRequest = 0.5;
 		}
 	}
 	else {
-		if (simulator == ARANTES) {
-			data->target_LOC = 0.1;
-			data->rangeReputationPrimaryToRequest = 0.1;
+		printf("stationary regime nb_workers_for_stationary %d\n", nb_workers_for_stationary);
+		if (random_target_LOC == RANDOM) {
+			if (simulator == ARANTES) {
+				data->target_LOC = 0.1;
+				data->rangeReputationPrimaryToRequest = 0.1;
+			}
+			else {
+				data->target_LOC = 0.90;
+				data->rangeReputationPrimaryToRequest = 0.90;
+			}
 		}
 		else {
-			data->target_LOC = 0.90;
-			data->rangeReputationPrimaryToRequest = 0.90;
+			if (simulator == ARANTES) {
+				data->target_LOC = (double)(rand() % 51) / 100.0;
+				data->rangeReputationPrimaryToRequest = 0.1;
+				printf("value of target_LOC wanted : %f\n", data->target_LOC);
+			}
+			else {
+				data->target_LOC = (50.0 + ((double)(rand() % 51))) / 100.0;
+				data->rangeReputationPrimaryToRequest = 0.1;
+				printf("value of target_LOC wanted : %f\n", data->target_LOC);
+			}
 		}
 	}
 	data->start_time = MSG_get_clock();
-	task = MSG_task_create (task_name, TASK_COMPUTE_DURATION, TASK_MESSAGE_SIZE, data);
+	task = MSG_task_create (task_name, task_compute_duration, task_message_size, data);
 	MSG_task_isend(task, mailbox);
 }
 
@@ -90,7 +106,7 @@ int client (int argc, char * argv[]) {
 	srand(time(NULL) * id + MSG_get_clock());
 
 	for (i = 0; i < nb_requests; i++) {
-		MSG_process_sleep(((double)(rand () % 10001)) / 1000.0);
+		//MSG_process_sleep(((double)(rand () % 10001)) / 1000.0);
 		
 		//send a request to the primary
 		send_task(i, primary, myMailbox);		

@@ -98,6 +98,7 @@ struct loadBalancing ** toSend_loadBalancing;
 
 char * doing_fusion;
 
+volatile int nb_workers_for_stationary;
 
 
 void tasks_print(int id);

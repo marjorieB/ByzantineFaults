@@ -491,6 +491,7 @@ void formGroup_random_fit_Arantes(msg_task_t * task_to_treat, int id) {
 		treat_tasks(w, task_to_treat, id);
 	}
 	complexity += 2.0;
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 

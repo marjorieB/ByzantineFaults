@@ -80,12 +80,14 @@ int main (int argc, char * argv[]) {
 	char plat_file[FILE_NAME_SIZE];
 	int i;
 
-	if (argc < 9) {
+	if (argc < 11) {
 		printf("you are using a simulator simulating a probabilistic centralised replication algorithm\n");
-		printf("usage: ./my-boinc file_database number_workers dep_file plat_file centrality SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY\n");
+		printf("usage: ./my-boinc file_database number_workers dep_file plat_file compute_duration size centrality SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY\n");
 		printf("file_database corresponds to the traces you want to use to simulate the behavior of your nodes\n");
 		printf("the number_workers corresponds to the number of worker you want in the system\n");
 		printf("the dep_file and the plat_file correspond respectively to the xml file describing the deployment and the platform\n");
+		printf("compute_duration corresponds to the time in flop each client task takes to be executed\n");
+		printf("size corresponds to the size of each client task has, so it permits to determine the time the task will take to be routed\n");
 		printf("centrality can take two different values: CENTRALIZED or DISTRIBUTED\n");
 		printf("if you use DISTRIBUTED you need to indicate whether you want a RANDOM strategy or a strategy depending on the reputations of workers. In this last case you need to enter REPUTATION\n");
 		printf("SIMULATOR can take two different values: SONNEK or ARANTES\n");
@@ -93,8 +95,10 @@ int main (int argc, char * argv[]) {
 		printf("if you use SYMMETRICAL you need to precise just behind the value x of which the reputation will be increase or decrease\n");
 		printf("if you use ASYMMETRICAL you need to precise juste behind the value x and y that respectively will serve to increase and decrease the reaputation of the workers\n");
 		printf("FORMATION_GROUP_STRATEGY can take 4 different values: FIXED_FIT, FIRST_FIT, TIGHT_FIT, RANDOM_FIT\n");
-		printf("if you use FIXED-FIT you need to precise just behind the value of workers you want in each groups\n");
-		printf("if you use FIRST-FIT, TIGHT-FIT or RANDOM-FIT you need to precise the value you want to achieve for each group, the minimum number of workers you want in each group and the maximum number of workers you want in each group\n");
+		printf("if you use FIXED_FIT you need to precise just behind the value of workers you want in each groups\n");
+		printf("if you use FIRST_FIT, TIGHT_FIT or RANDOM_FIT you need to precise the value you want to achieve for each group, the minimum number of workers you want in each group and the maximum number of workers you want in each group\n");
+		printf("if you use FIRST_FIT, TIGHT_FIT or RANDOM_FIT, you need to precise if you want to have the value taget_LOC for the request RANDOM or NOT_RANDOM\n");
+		printf("if you want the value NOT_RANDOM, then you need to indicate the value you want for the target_LOC of the client request\n");
 		printf("you need to precise a replication strategy only if you are using the simulator ARANTES with a FIXED_FIT formation group strategy\n");
 		printf("ADDITIONAL_REPLICATION_STRATEGY can take 3 different values: ITERATIVE_REDUNDANCY, PROGRESSIVE_REDUNDANCY\n");
 		printf("if you use ITERATIVE_REDUNDANCY you need to precise the number of answers you want between the supposed good and the supposed bad answers\n");
@@ -107,10 +111,22 @@ int main (int argc, char * argv[]) {
 		printf("the parameter %d must be the number of workers you want in the systems\n", index);
 		exit(1);
 	}
+	stationary_regime = 3 * nb_workers;
 	index++;	
 	strcpy(dep_file, argv[index]);
 	index++;
 	strcpy(plat_file, argv[index]);
+	index++;
+
+	if ((task_compute_duration = atoi(argv[index])) == 0) {
+		printf("the parameter %d must be the number of flop we want a task takes to be executed\n", index);
+		exit(1);
+	}
+	index++;
+	if ((task_message_size = atoi(argv[index])) == 0) {
+		printf("the parameter %d must be the size of a task\n", index);
+		exit(1);
+	}
 	index++;
 
 	if (!strcmp(argv[index], "CENTRALIZED")) {
@@ -241,9 +257,24 @@ int main (int argc, char * argv[]) {
 			exit(1);
 		}
 		index++;
+		if (!(strcmp(argv[index], "RANDOM"))) {
+			random_target_LOC = RANDOM;
+		}
+		else if (!(strcmp(argv[index], "NOT_RANDOM"))) {
+			random_target_LOC = NOT_RANDOM;
+			index++;
+			if ((value_target_LOC_stationary = atoi(argv[index])) == 0) {
+				printf("the parameter %d must be the value of the target LOC you want for the tasks\n", index);
+				exit(1);
+			}
+		}
+		else {
+			printf("the parameter %d must have the value RANDOM or NOT_RANDOM\n", index);
+			exit(1);
+		}
+		index++;
 	}
 
-	
 	if ((simulator == ARANTES) && (group_formation_strategy == FIXED_FIT)) { 
 		if (!strcmp(argv[index], "ITERATIVE_REDUNDANCY")) {
 			additional_replication_strategy = ITERATIVE_REDUNDANCY;	

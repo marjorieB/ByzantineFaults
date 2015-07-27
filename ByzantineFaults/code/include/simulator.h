@@ -86,9 +86,7 @@ int number_workers_too_high;
 int blacklist;
 
 //this global variable serves to indicate if we would like to use a RANDOM target_LOC for clients during the stationary regime
-int radom_target_LOC;
-// this global variable serves to indicate the value of target_LOC wanted by clients when the application is in a transitional regime
-double value_target_LOC_start;
+int random_target_LOC;
 // this global variable serves to indicate the value of target_LOC wanted by clients when the application is in a stationary regime
 double value_target_LOC_stationary;
 

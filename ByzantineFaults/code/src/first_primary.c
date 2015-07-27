@@ -13,6 +13,7 @@ char able_fusion = -1;
 void send_finalize_to_primaries () {
 	unsigned int cpt;
 	struct primary p;
+	double complexity = 0.0;
 	
 	xbt_dynar_foreach(active_primaries, cpt, p) {
 		msg_task_t finalize = MSG_task_create("finalize", 0, 0, NULL);
@@ -28,6 +29,10 @@ void send_finalize_to_primaries () {
 		msg_task_t finalize = MSG_task_create("finalize", 0, 0, NULL);
 		MSG_task_send(finalize, primary.name);
 	}
+
+	complexity = complexity + xbt_dynar_length(active_primaries) + xbt_dynar_length(inactive_primaries);
+
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
@@ -41,8 +46,10 @@ void send_task_random(msg_task_t task) {
 	}
 	else {
 		printf("first-primary: I forward the %s to primary-%d\n", MSG_task_get_name(task), nb_rand);
-		MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), TASK_MESSAGE_SIZE, MSG_task_get_data(task)), p->name);
+		MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, MSG_task_get_data(task)), p->name);
 	}
+
+	MSG_task_execute(MSG_task_create("task_complexity", 10.0, 0, NULL));
 }
 
 
@@ -51,17 +58,20 @@ void send_join_reputations(msg_task_t task) {
 	struct primary p;
 	struct clientDataTask * data = (struct clientDataTask *) malloc(sizeof(struct clientDataTask)); 
 	struct primary * pSend;
+	double complexity = 0.0;
 
 	data = MSG_task_get_data(task);
 
 	xbt_dynar_foreach(active_primaries, cpt, p) {
 		if ((50 >= p.min_reputation) && (50 < p.max_reputation)) {
 			pSend = xbt_dynar_get_ptr(active_primaries, cpt);
+			complexity += 2.0;
 			break;
 		}
 	}
 
 	MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), data), pSend->name);
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0 + cpt * 2.0, 0, NULL));
 }
 
 
@@ -70,24 +80,28 @@ void send_task_reputations(msg_task_t task) {
 	struct primary p;
 	struct clientDataTask * data = (struct clientDataTask *) malloc(sizeof(struct clientDataTask)); 
 	struct primary * pSend;
+	double complexity = 0.0;
 
 	data = MSG_task_get_data(task);
 
 	xbt_dynar_foreach(active_primaries, cpt, p) {
 		if ((data->rangeReputationPrimaryToRequest >= ((double)p.min_reputation / 100.0)) && (data->rangeReputationPrimaryToRequest < ((double)p.max_reputation / 100.0))) {
+			complexity += 2.0;
 			pSend = xbt_dynar_get_ptr(active_primaries, cpt);
 			break;
 		}
 	}
 
-	MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), TASK_MESSAGE_SIZE, data), pSend->name);
+	MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, data), pSend->name);
+
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + cpt * 4.0 + 3.0, 0, NULL));
 }
 
 
 void treat_change(msg_task_t task) {
 	xbt_dynar_t * workers_array = (xbt_dynar_t *) malloc(sizeof(xbt_dynar_t));
 	*workers_array = xbt_dynar_new(sizeof(struct p_worker), NULL);
-
+	double complexity = 1.0;
 
 	workers_array = (xbt_dynar_t *)MSG_task_get_data(task);
 	printf("size of the workers_array %ld\n", xbt_dynar_length(*workers_array));
@@ -109,14 +123,19 @@ void treat_change(msg_task_t task) {
 				break;
 			}
 		}
+		complexity = complexity + nb * 2.0 + 1.0 + 1.0;	
+
 		workerToSend = xbt_dynar_get_ptr(*workers_array, cpt); 
 		MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), (strlen(workerToSend->mailbox) + strlen(MSG_task_get_name(task))) * sizeof(char), workerToSend), toSend->name);
 	}
+
+	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
 }
 
 
 void treat_division(msg_task_t task) {
 	char mailbox[MAILBOX_SIZE];
+	double complexity = 0.0;
 
 	if (xbt_dynar_length(inactive_primaries) > 0) {
 		struct primary * p = (struct primary *) malloc(sizeof(struct primary));
@@ -138,13 +157,17 @@ void treat_division(msg_task_t task) {
 			}
 			p->min_reputation = r_l->min_reputation;
 			p->max_reputation = r_l->max_reputation;
+			complexity = complexity + 4.0 + cpt + 1.0;
 		}
 		else {
 			strcpy(mailbox, (char *) MSG_task_get_data(task));
+			complexity++;
 		}
 
 		xbt_dynar_push(active_primaries, p);
 		MSG_task_isend(MSG_task_create("ack_division", 0, (strlen("ack_division") + strlen(p->name)) * sizeof(char), p->name), mailbox); 
+	
+		complexity += 8.0;
 
 		if ((able_fusion == -1) && (xbt_dynar_length(active_primaries)) >= 2) {
 			unsigned int nb;
@@ -159,6 +182,8 @@ void treat_division(msg_task_t task) {
 			xbt_dynar_foreach(inactive_primaries, nb1, prim1) {
 				MSG_task_isend(MSG_task_create("able_fusion", 0, strlen("able_fusion") * sizeof(char), NULL), prim1.name);
 			}		
+
+			complexity = complexity + xbt_dynar_length(active_primaries) + xbt_dynar_length(inactive_primaries) + 1.0;
 		}	
 
 		if (xbt_dynar_length(inactive_primaries) == 0) {
@@ -175,15 +200,20 @@ void treat_division(msg_task_t task) {
 			xbt_dynar_foreach(inactive_primaries, nb1, prim1) {
 				MSG_task_isend(MSG_task_create("unable_division", 0, strlen("unable_division") * sizeof(char), NULL), prim1.name);
 			}
+			complexity = complexity + xbt_dynar_length(active_primaries) + xbt_dynar_length(inactive_primaries) + 1.0; 
 		}
 	}
 	else {
 		MSG_task_isend(MSG_task_create("unack_division", 0, strlen("unack_division") * sizeof(char), NULL), MSG_task_get_data(task));
 	}
+
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
 }
 
 
 void treat_fusion(msg_task_t task) {
+	double complexity = 0.0;
+
 	if (xbt_dynar_length(active_primaries) > 1) {
 		// we necessarily want at least a primary in the system
 		unsigned int cpt;
@@ -200,22 +230,27 @@ void treat_fusion(msg_task_t task) {
 
 		MSG_task_isend(MSG_task_create("ack_fusion", 0, strlen("ack_fusion") * sizeof(char), NULL), (char *)MSG_task_get_data(task));
 
+		complexity = complexity + cpt + 4.0;
+
 		if (xbt_dynar_length(active_primaries) == 1) {
 			able_fusion = -1;
 			struct primary * toSend = xbt_dynar_get_ptr(active_primaries, 0);
 			MSG_task_isend(MSG_task_create("unable_fusion", 0, strlen("unable_fusion") * sizeof(char), NULL), toSend->name);
 			
-			unsigned int cpt;
+			unsigned int nb;
 			struct primary p;
 		
-			xbt_dynar_foreach(inactive_primaries, cpt, p) {
+			xbt_dynar_foreach(inactive_primaries, nb, p) {
 				MSG_task_isend(MSG_task_create("unable_fusion", 0, strlen("unable_fusion") * sizeof(char), NULL), p.name);
 			}
+			complexity = 2.0 + nb;
 		}
 	}
 	else {
 		MSG_task_isend(MSG_task_create("unack_fusion", 0, strlen("unack_fusion") * sizeof(char), NULL), (char *)MSG_task_get_data(task));
 	}
+	
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
 }
 
 
@@ -223,6 +258,7 @@ void treat_workers_to_fuse(msg_task_t task) {
 	int i;
 	struct fusion * recv = (struct fusion *) MSG_task_get_data(task);
 	int until = xbt_dynar_length(recv->workersToSend);
+	double complexity = 2.0;
 
 	for (i = 0; i < until; i++) {
 		struct p_worker * p_w = (struct p_worker *) malloc(sizeof(struct p_worker));
@@ -230,9 +266,12 @@ void treat_workers_to_fuse(msg_task_t task) {
 
 		xbt_dynar_pop(recv->workersToSend, p_w);
 
+		complexity += 2.0;
+
 		if (distributed_strategies == RANDOM) {
 			int nb_rand = rand() % (xbt_dynar_length(active_primaries));
-			p = xbt_dynar_get_ptr(active_primaries, nb_rand);			
+			p = xbt_dynar_get_ptr(active_primaries, nb_rand);		
+			complexity += 5.0;	
 		}
 		else {
 			unsigned int cpt;
@@ -245,21 +284,26 @@ void treat_workers_to_fuse(msg_task_t task) {
 			char limit[1];
 			limit[1] = (recv->max - recv->min) / 2 + recv->min;
 
+			complexity += 3.0;
 			xbt_dynar_foreach(active_primaries, cpt, primary) {
 				if ((p_w->reputation >= primary.min_reputation) && (p_w->reputation < primary.max_reputation)) {
 					found = 1;
 					p = xbt_dynar_get_ptr(active_primaries, cpt);
+					complexity += 4.0;
 					break;
 				}
 				if ((primary.max_reputation <= recv->min) && ((recv->min - primary.max_reputation) < min_min)) {
 					min_min = recv->min - primary.max_reputation;
 					p_min_min = xbt_dynar_get_ptr(active_primaries, cpt);
+					complexity += 8.0;
 				}
 				if ((primary.min_reputation >= recv->max) && ((primary.min_reputation - recv->max) < min_max)) {
 					min_max = primary.min_reputation - recv->max;
 					p_min_max = xbt_dynar_get_ptr(active_primaries, cpt);
+					complexity += 11.0;
 				}
 			}
+			complexity++;
 			if (found != 1) {
 				p_min_min->max_reputation = limit[1];
 				p_min_max->min_reputation = limit[1];
@@ -275,11 +319,14 @@ void treat_workers_to_fuse(msg_task_t task) {
 						break;
 					}
 				}
+				complexity = complexity + 1.0 + nb * 2.0;
 			}
 		}
 
 		MSG_task_isend(MSG_task_create("change", MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), p_w), p->name);
 	}	
+
+	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
 }
 
 
