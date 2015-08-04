@@ -75,11 +75,15 @@ struct p_worker * dynar_search(const char * name, int id) {
 
 	xbt_dynar_foreach (workers[id], cpt, p_w) {
  		if (!strcmp(p_w.mailbox, name)) {
-			MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
+			msg_task_t task_complexity = MSG_task_create("task_complexity", cpt, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
 			return xbt_dynar_get_ptr(workers[id], cpt);
 		}
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", cpt, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	return NULL;
 }
 
@@ -89,6 +93,7 @@ void send_finalize_to_workers(int id) {
 	struct p_worker p_w;
 
 	// at the end the workers can be in the workers list. But as their is no more tasks from client, it is impossible to have worker in the active groups
+	printf("primary-%d: send finalize to workers\n", id);
 	xbt_dynar_foreach (workers[id], cpt, p_w) {
 		msg_task_t finalize = MSG_task_create("finalize", 0, 0, NULL);
 		MSG_task_send(finalize, p_w.mailbox);
@@ -97,6 +102,7 @@ void send_finalize_to_workers(int id) {
 
 
 void add_new_worker(const char * name, char * myMailbox, int id) {
+	printf("%s add the worker %s\n", myMailbox, name);
 	struct p_worker * w_found;// = (struct p_worker *) malloc(sizeof(struct p_worker));
 	msg_task_t ack;
 	struct p_worker * worker = (struct p_worker *) malloc(sizeof(struct p_worker));
@@ -138,32 +144,32 @@ void add_new_worker(const char * name, char * myMailbox, int id) {
 		xbt_dynar_push(workers[id], worker);
 		complexity += 7.0;
 	}
-	printf("sending acknowledgement to the %s\n", worker->mailbox);
 	ack = MSG_task_create("ack", ACK_COMPUTE_DURATION, (strlen("ack") + strlen(myMailbox)) * sizeof(char), myMailbox);
 	
-	MSG_task_isend(ack, name);	
+	MSG_task_send(ack, name);	
 
 	complexity += 2.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
+	//free(worker);
 }
 
 
 void add_new_worker_change(msg_task_t task, char * myMailbox, int id) {
 	msg_task_t ack;
 	struct p_worker * worker = (struct p_worker *) malloc(sizeof(struct p_worker));
-	printf("here\n");
 	worker = (struct p_worker *) MSG_task_get_data(task);
-	printf("name of the worker: %s, reputation %d\n", worker->mailbox, worker->reputation);
 	
 	xbt_dynar_push(workers[id], worker);
-
-	printf("sending acknowledgement to the %s\n", worker->mailbox);
 	
 	//ack = MSG_task_create("ackchange", ACK_COMPUTE_DURATION, (strlen("ackchange") + strlen(myMailbox)) * sizeof(char), myMailbox);
 	ack = MSG_task_create("ack", ACK_COMPUTE_DURATION, (strlen("ack") + strlen(myMailbox)) * sizeof(char), myMailbox);
-	MSG_task_isend(ack, worker->mailbox);	
+	MSG_task_send(ack, worker->mailbox);	
 
-	MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -172,7 +178,10 @@ void put_task_fifo(msg_task_t task, int id) {
 
 	*todo = MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, MSG_task_get_data(task));
 	xbt_fifo_push(tasks[id], todo);
-	MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -224,7 +233,6 @@ void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat, int id) {
 	struct clientDataTask * data;// = (struct clientDataTask *) malloc(sizeof(struct clientDataTask));
 
 	data = (struct clientDataTask *) MSG_task_get_data(*task_to_treat);
-	printf("name of the client %s\n", data->mailbox);
 	t->start = data->start_time;
 	strcpy(t->client, data->mailbox);
 	t->targetLOC = data->target_LOC;
@@ -239,10 +247,14 @@ void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat, int id) {
 	t->nb_false_answers = 0;
 	t->nb_correct_answers = 0;
 	t->to_replicate = 0;
-	t->additional_workers = xbt_dynar_new((sizeof(char) * MAILBOX_SIZE), NULL);
-	t->additional_reputations = xbt_dynar_new(sizeof(unsigned char), NULL);
+	t->additional_workers = NULL;
+	t->additional_reputations = NULL;
+	t->nb_replication = 0;
+	//t->additional_workers = xbt_dynar_new((sizeof(char) * MAILBOX_SIZE), NULL);
+	//t->additional_reputations = xbt_dynar_new(sizeof(unsigned char), NULL);
 	t->active_workers = xbt_fifo_push(active_groups[id], w);
 
+	printf("primary-0: treat_tasks %s %s\n", t->client, t->task_name);
 	nb++;
 	struct p_worker p_w;
 	unsigned int cpt;
@@ -250,85 +262,93 @@ void treat_tasks(xbt_dynar_t * w, msg_task_t * task_to_treat, int id) {
 	xbt_dynar_foreach (*w, cpt, p_w) {
 		printf("send task %s %s to %s\n", t->client, t->task_name, p_w.mailbox);  
 		msg_task_t to_send = MSG_task_create(MSG_task_get_name(*task_to_treat), MSG_task_get_compute_duration(*task_to_treat), task_message_size, t->client);
-		printf("after MSG_task_create\n");
-		MSG_task_isend(to_send, p_w.mailbox);
-		printf("after MSG_task_send\n");
+		MSG_task_send(to_send, p_w.mailbox);
 	}
 
 	xbt_fifo_push(processing_tasks[id], t);
-	printf("push done\n");
 	xbt_fifo_remove(tasks[id], task_to_treat);	
-	printf("tasks removed\n");	
-	tasks_print(id);
+	//tasks_print(id);
 
-	MSG_task_execute(MSG_task_create("task_complexity", 24.0 + cpt, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 24.0 + cpt, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
+	//free(t);
 }
 
 
 void try_to_treat_tasks(char * mailbox, int id) {
 	double complexity = 0.0;
+	char ret = 0;
 
+	printf("primary-0: in try_to_treat_tasks: nb_workers=%ld, nb_tasks=%d\n", xbt_dynar_length(workers[id]), xbt_fifo_size(tasks[id]));
 	if (xbt_dynar_length(workers[id]) >= group_formation_min_number) {
 
 		xbt_fifo_item_t i;
 		msg_task_t * task_to_treat;
 
-		printf("content of the list \"tasks\" size %d, %ld:\n", xbt_fifo_size(tasks[id]), xbt_dynar_length(workers[id]));	
 		for(i = xbt_fifo_get_first_item(tasks[id]); ((i) ? (task_to_treat = (msg_task_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 			complexity += 4.0;
 			if (xbt_dynar_length(workers[id]) >= group_formation_min_number) {
 				if (group_formation_strategy == FIXED_FIT) {
 					complexity += 3.0;
-					printf("call formGroup_fixed_fit\n");
-					formGroup_fixed_fit(task_to_treat, id);
+					ret = formGroup_fixed_fit(task_to_treat, id);
 				}
 				else if (group_formation_strategy == FIRST_FIT) {
 					if (simulator == ARANTES) {
-						formGroup_first_fit_Arantes(task_to_treat, id);
+						ret = formGroup_first_fit_Arantes(task_to_treat, id);
 					}
 					else {
 						// the simulator chosen is SONNEK
-						formGroup_first_fit_Sonnek(task_to_treat, id);
+						ret = formGroup_first_fit_Sonnek(task_to_treat, id);
 					}
 					complexity += 5.0;
 				}
 				else if (group_formation_strategy == TIGHT_FIT) {
 					if (simulator == ARANTES) {
-						formGroup_tight_fit_Arantes(task_to_treat, id);
+						ret = formGroup_tight_fit_Arantes(task_to_treat, id);
 					}
 					else {
 						// the simulator chosen is SONNEK
-						formGroup_tight_fit_Sonnek(task_to_treat, id);
+						ret = formGroup_tight_fit_Sonnek(task_to_treat, id);
 					}
 					complexity += 6.0;
 				}
 				else {
 					// the group_formation_strategy chosen is the RANDOM_FIT
 					if (simulator == ARANTES) {
-						formGroup_random_fit_Arantes(task_to_treat, id);
+						ret = formGroup_random_fit_Arantes(task_to_treat, id);
 					}
 					else {
 						// the simulator chosen is SONNEK
-						formGroup_random_fit_Sonnek(task_to_treat, id);
+						ret = formGroup_random_fit_Sonnek(task_to_treat, id);
 					}
 					complexity += 6.0;
+				}
+				if (random_target_LOC == NOT_RANDOM) {
+					if (ret == -1) {
+						break;
+					}
 				}
 			}
 			else {
 				complexity += 2.0;
-				printf("have to break\n");
 				break;
 			}
 		}
-		if((xbt_fifo_size(active_groups[id]) == 0) && (xbt_fifo_size(tasks[id]) != 0)) {
-			// we have tried to form group but we have'nt been able to do so
-			if (able_to_send_fusion[id] == 1) {
-				doing_fusion[id] = 1;
-				MSG_task_isend(MSG_task_create("fusion", 0, (strlen("fusion") + strlen(mailbox)) * sizeof(char), mailbox), first_primary_name);
+		if (centrality == DISTRIBUTED) {
+			if((xbt_fifo_size(active_groups[id]) == 0) && (xbt_fifo_size(tasks[id]) != 0)) {
+				// we have tried to form group but we have'nt been able to do so
+				if (able_to_send_fusion[id] == 1) {
+					doing_fusion[id] = 1;
+					MSG_comm_destroy(MSG_task_isend(MSG_task_create("fusion", 0, (strlen("fusion") + strlen(mailbox)) * sizeof(char), mailbox), first_primary_name));
+				}
 			}
 		}
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -337,12 +357,16 @@ struct p_worker * give_worker_dynar(char * name, int id) {
 	struct p_worker p_w;
 
 	xbt_dynar_foreach(workers[id], cpt, p_w) {
- 		if (!strcmp(p_w.mailbox, name)) {	
-			MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
+ 		if (!strcmp(p_w.mailbox, name)) {
+			msg_task_t task_complexity = MSG_task_create("task_complexity", cpt, 0, NULL);	
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
 			return xbt_dynar_get_ptr(workers[id], cpt);
 		}
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", cpt, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", cpt, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	return NULL;
 }
 
@@ -359,18 +383,23 @@ struct p_worker * give_worker_active_groups(char * name, int id) {
 
 		xbt_dynar_foreach(*n, cpt, p_w) { 
 	 		if (!strcmp(p_w.mailbox, name)) {
-				MSG_task_execute(MSG_task_create("task_complexity", complexity + cpt + 4.0, 0, NULL));
+				msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + cpt + 4.0, 0, NULL);
+				MSG_task_execute(task_complexity);
+				MSG_task_destroy(task_complexity);
 				return xbt_dynar_get_ptr(*n, cpt);
 			}
 		}
 		complexity += cpt;
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 4.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	return NULL;
 }
 
 
 void updateReputation(struct p_task * t, int id) {
+	printf("primary-%d: in updateReputation\n", id); 
 	struct p_answer_worker p_a_w;
 	struct p_worker * toModify;
 	unsigned int cpt;
@@ -386,8 +415,8 @@ void updateReputation(struct p_task * t, int id) {
 			if ((toModify = give_worker_dynar(name, id)) == NULL) {
 				complexity += 2.0;
 				if ((toModify = give_worker_active_groups(name, id)) == NULL) {
-					printf("unknown worker: impossible\n");
-					exit(1);
+					// if we don't find the worker it's because it has crashed and we have suppressed it from the system
+					continue;
 				} 			
 			}
 			complexity += 4.0;
@@ -441,7 +470,7 @@ void updateReputation(struct p_task * t, int id) {
 						}
 						complexity += cpt;
 
-						MSG_task_isend(MSG_task_create("ejected", 0, 0, NULL), toModify->mailbox);
+						MSG_task_send(MSG_task_create("ejected", 0, 0, NULL), toModify->mailbox);
 					}
 				}
 				if ((toModify->reputation >= reputations_primary[id].max_reputation) || (toModify->reputation < reputations_primary[id].min_reputation)) {
@@ -455,7 +484,9 @@ void updateReputation(struct p_task * t, int id) {
 		nb_workers_for_stationary += xbt_dynar_length(p_a_w.worker_names);
 	}
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 4.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -465,6 +496,8 @@ void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_nam
 	struct p_answer_worker * toModify = NULL;
 	struct p_worker * w;
 	double complexity = 0.0;
+
+	printf("primary-%d: I receive an answer of %s for the task %s %s\n", id, worker_name, p_t->client, p_t->task_name);
 	
 	w = give_worker_active_groups(worker_name, id);
 
@@ -486,6 +519,7 @@ void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_nam
 		xbt_dynar_push(toAdd->worker_names, worker_name);
 		xbt_dynar_push(toAdd->worker_reputations, &(w->reputation));
 		xbt_dynar_push(p_t->w_answers, toAdd);
+		free(toAdd);
 		complexity += 7.0;
 	}
 	else {
@@ -494,7 +528,10 @@ void add_answers(struct p_task * p_t, xbt_dynar_t * w_answers, char * worker_nam
 		xbt_dynar_push(toModify->worker_reputations, &(w->reputation));
 		complexity += 2.0;
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 1.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 1.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -524,7 +561,11 @@ double valueCond2 (struct p_answer_worker * res, struct p_task * p_t) {
 		}
 		complexity += 2.0;
 	}	
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
+
 	return (Psc / (tmp + Psc));
 }
 
@@ -561,27 +602,25 @@ void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, 
 				*max_value = tmp;
 				res = xbt_dynar_get_ptr(p_t->w_answers, cpt);
 				*nb_majoritary_answer = 1;
-				printf("value of max_value %f, nombre de noeuds ayant rendu ce résultat %ld\n", tmp, xbt_dynar_length(w_a.worker_names));
 				complexity += 8.0;
 			} 
 			else if (tmp == max) {
 				*nb_majoritary_answer = *nb_majoritary_answer + 1;	
 				complexity += 6.0;
-				printf("value of max_value %f, nombre de noeuds ayant rendu ce résultat %ld\n", tmp, xbt_dynar_length(w_a.worker_names));
-			}
-			else {////// else to suppress : just for the debug
-				printf("value of max_value %f, nombre de noeuds ayant rendu ce résultat %ld\n", tmp, xbt_dynar_length(w_a.worker_names));
 			}
 		}
 		complexity += 3.0;
 	}
 	complexity++;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	p_t->res = res;
 }	
 
 
-void writes_data (char * client_name, char * task_name, double time_start_task, char fail, unsigned int long answer, long int number_workers_used, int id) {
+void writes_data (char * client_name, char * task_name, double time_start_task, char fail, unsigned int long answer, long int number_workers_used, double targetLOC, int id) {
 	char toWrite[BUFFER_SIZE];
 	char separator = ';';
 
@@ -602,8 +641,27 @@ void writes_data (char * client_name, char * task_name, double time_start_task, 
 	sprintf(toWrite, "%lu;", answer);
 	write(data_csv[id], toWrite, sizeof(char) * strlen(toWrite));
 
-	sprintf(toWrite, "%ld;\n", number_workers_used);
+	
+	xbt_fifo_item_t i;
+	xbt_dynar_t * n;
+	int nb = 0;
+	int to_write = 0;
+
+	 for(i = xbt_fifo_get_first_item(active_groups[id]); ((i) ? (n = (xbt_dynar_t *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
+		nb++;
+		printf("group number %d\n", nb);
+		
+		to_write += xbt_dynar_length(*n);
+ 	}
+
+	sprintf(toWrite, "%ld;%ld;\n", number_workers_used, xbt_dynar_length(workers[id]) + to_write);
 	write(data_csv[id], toWrite, sizeof(char) * strlen(toWrite));
+	
+	nb_answers_written_data_csv++;
+	if (nb_answers_written_data_csv >= 300) {
+		MSG_process_killall(-1);
+		exit(0);
+	}
 }
 
 
@@ -611,63 +669,69 @@ void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * proc
 	double complexity = 0.0;
 
 	if ((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) > floor((double)n->nb_forwarded/2.0))) {
-		printf("send the answer %ld to client %s\n", n->res->answer, n->client);
+		printf("primary-%d: send the answer %ld to client %s for %s\n", id, n->res->answer, n->client, n->task_name);
 		// there is no ambiguity on the final result: the majority doesn't necessarly correspond to the absolute majority
 		n->final_answer = n->res->answer;
 		if (nb_workers_for_stationary >= stationary_regime) {
-			writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
+			writes_data(n->client, n->task_name, n->start, -1, n->res->answer, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
 		}
 		// send the answer to the client
 		msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-		MSG_task_isend(answer_client, n->client);
+		MSG_task_send(answer_client, n->client);
 
 		complexity += 6.0;
-		printf("in primary-%d, list of workers\n", id);
-		workers_print(&(workers[id]));
+		//printf("in primary-%d, list of workers\n", id);
+		//workers_print(&(workers[id]));
 	}	
 	else if (nb_majoritary_answer == 1) {
 		n->final_answer = n->res->answer;
 		if (nb_workers_for_stationary >= stationary_regime) {
-			writes_data(n->client, n->task_name, n->start, 0, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
+			writes_data(n->client, n->task_name, n->start, 0, n->res->answer, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
 		}	
-		printf("send fail to client %s\n", n->client);
+		printf("primary-%d: send fail to client %s for %s\n", id, n->client, n->task_name);
 		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-		MSG_task_isend(fail, n->client);
+		MSG_task_send(fail, n->client);
 
 		complexity += 7.0;
 	}				
 	else {
 		if (nb_workers_for_stationary >= stationary_regime) {
-			writes_data(n->client, n->task_name, n->start, 1, 0, xbt_dynar_length(n->res->worker_names), id);
+			writes_data(n->client, n->task_name, n->start, 1, 0, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
 		}
 		// replication of the task on additional nodes
 		// if we use Sonnek, there isn't replication mechanism. We just send an error to the client indicating him the primary fail obtaining an (absolute or qualify) majority in the answers collected
-		printf("send fail to client %s\n", n->client);
+		printf("primary-%d: send fail to client %s for %s\n", id, n->client, n->task_name);
 		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-		MSG_task_isend(fail, n->client);
+		MSG_task_send(fail, n->client);
 		complexity += 6.0;
 	}
 	// in case of Sonnek what ever happen, when all the workers have answer the task is processed (because there isn't any addtional replication strategy)
 	*process = 1;
 	complexity++;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	// update the reputation of the workers and suppress the processing task
 	//updateReputation(n, id);
-	printf("in primary-%d, list of workers\n", id);
-	workers_print(&(workers[id]));
-	printf("acitve groups for primary-%d\n", id);
-	groups_print(&(active_groups[id]));
+	//printf("in primary-%d, list of workers\n", id);
+	//workers_print(&(workers[id]));
+	//printf("acitve groups for primary-%d\n", id);
+	//groups_print(&(active_groups[id]));
 }
 
 
-void replication(struct p_task * n, int id) {
-	/*n->nb_replication++;
+char replication(struct p_task * n, int id) {
 	if (n->nb_replication == REPLICATION_MAX) {
-		msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-		MSG_task_isend(fail, n->client);
-		// destruction of the processing tasks
+		msg_task_t task_complexity = MSG_task_create("task_complexity", 1.0, 0, NULL);
+		MSG_task_execute(task_complexity);
+		MSG_task_destroy(task_complexity);
 		
-	}*/
+		return 1;
+	}
+	n->nb_replication++;
+	n->additional_workers = xbt_dynar_new((sizeof(char) * MAILBOX_SIZE), NULL);
+	n->additional_reputations = xbt_dynar_new(sizeof(int), NULL);
 
 	if (group_formation_strategy == FIXED_FIT) {
 		printf("replication fixed_fit\n");
@@ -676,11 +740,15 @@ void replication(struct p_task * n, int id) {
 	else {
 		replication_others_fit(n, id);
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", 1.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
+	return -1;
 }
 
 
-void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value, int id) {
+void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, char * stop_replication, double max_value, int id) {
 	double complexity = 0.0;
 
 	if (group_formation_strategy == FIXED_FIT) {
@@ -690,12 +758,12 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 			if ((nb_majoritary_answer == 1) && ((xbt_dynar_length(n->res->worker_names) - (n->nb_forwarded - xbt_dynar_length(n->res->worker_names))) >= additional_replication_value_difference)) {
 				n->final_answer = n->res->answer;
 				if (nb_workers_for_stationary >= stationary_regime) {
-					writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
+					writes_data(n->client, n->task_name, n->start, -1, n->res->answer, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
 				}			
 				printf("final answer = %ld\n", n->res->answer);
 				// send the answer to the client
 				msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-				MSG_task_isend(answer_client, n->client);
+				MSG_comm_destroy(MSG_task_isend(answer_client, n->client));
 
 				*process = 1;
 				complexity += 2.0;
@@ -704,7 +772,7 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 			else {
 				printf("additional replication\n");
 				// replication
-				replication(n, id);
+				*stop_replication = replication(n, id);
 				printf("after additional replication\n");
 			}
 			complexity += 7.0;
@@ -714,18 +782,18 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 			if ((nb_majoritary_answer == 1) && (xbt_dynar_length(n->res->worker_names) >= (floor((double)group_formation_fixed_number/2.0) + 1))) {
 				n->final_answer = n->res->answer;
 				if (nb_workers_for_stationary >= stationary_regime) {
-					writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
+					writes_data(n->client, n->task_name, n->start, -1, n->res->answer, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
 				}				
 				// send the answer to the client
 				msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-				MSG_task_isend(answer_client, n->client);
+				MSG_comm_destroy(MSG_task_isend(answer_client, n->client));
 
 				*process = 1;
 				complexity += 2.0;
 				//updateReputation(n, id);
 			}
 			else {
-				replication(n, id);
+				*stop_replication = replication(n, id);
 			}
 			complexity += 7.0;
 		}
@@ -735,12 +803,12 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 		// there is no ambiguity on the final result
 		n->final_answer = n->res->answer;
 		if (nb_workers_for_stationary >= stationary_regime) {
-			writes_data(n->client, n->task_name, n->start, -1, n->res->answer, xbt_dynar_length(n->res->worker_names), id);
+			writes_data(n->client, n->task_name, n->start, -1, n->res->answer, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
 		}
 		printf("final answer = %ld\n", n->res->answer);
 		// send the answer to the client
 		msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
-		MSG_task_isend(answer_client, n->client);
+		MSG_comm_destroy(MSG_task_isend(answer_client, n->client));
 
 		*process = 1;
 		complexity += 10.0;
@@ -754,9 +822,41 @@ void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * pro
 			printf("value of the name that return the good answer %s\n", name);
 		}
 		complexity += 8.0;
-		replication(n, id);
+		*stop_replication = replication(n, id);
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	if (*stop_replication == 1) {
+		if (nb_majoritary_answer == 1) {
+			if (nb_workers_for_stationary >= stationary_regime) {
+				writes_data(n->client, n->task_name, n->start, -1, n->res->answer, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
+			}			
+			printf("final answer = %ld\n", n->res->answer);
+			// send the answer to the client
+			msg_task_t answer_client = MSG_task_create("answer", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+			MSG_comm_destroy(MSG_task_isend(answer_client, n->client));
+		}
+		else {
+			n->final_answer = n->res->answer;
+			if (nb_workers_for_stationary >= stationary_regime) {
+				writes_data(n->client, n->task_name, n->start, 0, n->res->answer, n->nb_forwarded, n->targetLOC, id);//xbt_dynar_length(n->res->worker_names), id);
+			}	
+			printf("primary-%d: send fail to client %s for %s\n", id, n->client, n->task_name);
+			msg_task_t fail = MSG_task_create("fail", ANSWER_COMPUTE_DURATION, ANSWER_MESSAGE_SIZE, n->task_name);
+			MSG_task_send(fail, n->client);
+
+			complexity += 1.0;
+
+		}
+		complexity += 1.0;
+	}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 1.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -768,58 +868,56 @@ int inAdditional_replication_tasks (struct p_task * p_t, int id) {
    for(i = xbt_fifo_get_first_item(additional_replication_tasks[id]); ((i) ? (n = (struct p_task *)(xbt_fifo_get_item_content(i))) : (NULL)); i = xbt_fifo_get_next_item(i)) {
 		complexity++;
 		if (n == p_t) {
-			MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
+			msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 4.0, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
 			return 1;
 		}
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 4.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	return -1;
 }
 
 
 void suppress_processing_tasks_and_active_group(struct p_task * n, int id) {
-	printf("active_groups %p\n", n->active_workers);
+	printf("primary-%d: suppress the active group and processing tasks for %s %s\n", id, n->client, n->task_name);
 	// suppress the group in active groups
 	//if (xbt_fifo_remove(active_groups, *(n->active_workers)) != 1) {
 	if (xbt_fifo_remove(active_groups[id], xbt_fifo_get_item_content(n->active_workers)) != 1) {
 		printf("problem detected when removing a xbt_dynar_t from active_groups\n");
 	}
-	else {
-		printf("supression of the active group\n");
-	}
 	// suppress the task (because it has been accomplished) from the processing_tasks
 	if(xbt_fifo_remove(processing_tasks[id], n) != 1) {
 		printf("problem detected when removing a struct p_task from processing_tasks\n");
 	}
-	else {
-		printf("task suppressed from the processing_tasks\n");
-	}
-	MSG_task_execute(MSG_task_create("task_complexity", 5.0, 0, NULL));
+
+	msg_task_t task_complexity= MSG_task_create("task_complexity", 5.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
-void worker_from_active_group_to_workers(char * name, struct p_task * n, int process, int id) {
+void worker_from_active_group_to_workers(char * name, struct p_task * n, int process, int stop_replication, int id) {
 	double complexity = 4.0;
 
+	printf("primary-%d: suppression of the %s of the active groups -> put it in workers\n", id, name);
 	// move the worker from the active groups from the workers
 	xbt_fifo_item_t j;
 	xbt_dynar_t * d;
 	char found = -1;
 	struct p_worker * toAddToWorkers = (struct p_worker *) malloc(sizeof(struct p_worker));
 
-	printf("size of active_groups %d\n", xbt_fifo_size(active_groups[id]));
-
 	for(j = xbt_fifo_get_first_item(active_groups[id]); ((j) ? (d = (xbt_dynar_t *)(xbt_fifo_get_item_content(j))) : (NULL)); j = xbt_fifo_get_next_item(j)) {
 
 		struct p_worker p_w;
 		unsigned int cpt;
 
-		printf("size of the p_worker %ld\n", xbt_dynar_length(*d)); 
-
 		xbt_dynar_foreach (*d, cpt, p_w) {
 	 		if (!strcmp(p_w.mailbox, name)) {
 				found = 1;
-				printf("name of the workers %s\n", p_w.mailbox);
 				break;
 			}
 		}
@@ -834,46 +932,54 @@ void worker_from_active_group_to_workers(char * name, struct p_task * n, int pro
 
 	complexity += 2.0;
 	xbt_dynar_push(workers[id], toAddToWorkers);
-	if (process == 1) {
+
+	// we check if the name of the worker is in the additional_workers and if yes, we remove it from that array and we remove its reputation from the additional_reputation array too
+	if (n->additional_workers != NULL) {
+		char worker_name[MAILBOX_SIZE];
+		unsigned int nb;
+		found = -1;
+
+		xbt_dynar_foreach(n->additional_workers, nb, worker_name) {
+			if (!strcmp(worker_name, name)) {
+				found = 1;
+				break;
+			}
+		}
+		complexity = complexity + nb + 1.0;
+		if (found == 1) {
+			xbt_dynar_remove_at(n->additional_workers, nb, NULL);
+			xbt_dynar_remove_at(n->additional_reputations, nb, NULL);
+			complexity += 2.0;
+		}
+	}
+
+	if ((process == 1) || (stop_replication == 1)) {
 		updateReputation(n, id);
 		//suppress_processing_tasks_and_active_group(d, n);
 		suppress_processing_tasks_and_active_group(n, id);
 	}
 
-	// we check if the name of the worker is in the additional_workers and if yes, we remove it from that array and we remove its reputation from the additional_reputation array too
-	char worker_name[MAILBOX_SIZE];
-	unsigned int nb;
-	found = -1;
 
-	xbt_dynar_foreach(n->additional_workers, nb, worker_name) {
-		if (!strcmp(worker_name, name)) {
-			found = 1;
-			break;
-		}
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
+	if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
+		send_change(id);
 	}
-	complexity = complexity + nb + 1.0;
-	if (found == 1) {
-		xbt_dynar_remove_at(n->additional_workers, nb, NULL);
-		xbt_dynar_remove_at(n->additional_reputations, nb, NULL);
-		complexity += 2.0;
-	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
-	send_change(id);
+
+	workers_print(&workers[id]);
+	groups_print(&active_groups[id]);
 }
 
 
-void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process, int id) {
+void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process, int stop_replication, int id) {
+	printf("primary-%d: suppression of the %s of the active groups -> suppression\n", id, name);
 	// remove the worker from the system since it has crashed
 	xbt_fifo_item_t j;
 	xbt_dynar_t * d;
 	struct p_worker * toSuppress = NULL;
 	double complexity = 0.0;
-
-	if (process == 1) {
-		updateReputation(n, id);
-		//suppress_processing_tasks_and_active_group(d, n);
-		suppress_processing_tasks_and_active_group(n, id);
-	}
+	char found = -1;
 
 	for(j = xbt_fifo_get_first_item(active_groups[id]); ((j) ? (d = (xbt_dynar_t *)(xbt_fifo_get_item_content(j))) : (NULL)); j = xbt_fifo_get_next_item(j)) {
 
@@ -882,18 +988,34 @@ void worker_from_active_group_to_suppression(char * name, struct p_task * n, int
 
 		xbt_dynar_foreach (*d, cpt, p_w) {
 	 		if (!strcmp(p_w.mailbox, name)) {
+				found = 1;
 				break;
 			}
 		}
+		
+		if (found == 1) {
+			xbt_dynar_remove_at(*d, cpt, toSuppress);
+			free(toSuppress);
+		}
 		complexity = complexity + cpt + 1.0;
-		xbt_dynar_remove_at(*d, cpt, toSuppress);
-		free(toSuppress);
+		
 
 		break;
 	}
 
+	if ((process == 1) || (stop_replication == 1)) {
+		updateReputation(n, id);
+		//suppress_processing_tasks_and_active_group(d, n);
+		suppress_processing_tasks_and_active_group(n, id);
+	}
+
 	complexity += 6.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
+	workers_print(&workers[id]);
+	groups_print(&active_groups[id]);
 }
 
 
@@ -906,11 +1028,14 @@ void treat_answer(msg_task_t t, int crash, int id) {
 	xbt_fifo_item_t i;
 	struct p_task * n;
 	char process = -1;
+	char stop_replication = -1;
 	int nb_majoritary_answer = 0;
 	double max_value = 0.0;
 
 	w_t = (struct w_task *)MSG_task_get_data(t);
-	printf("received %s %s %s %ld\n", w_t->client, w_t->worker_name, w_t->task_name, w_t->answer);
+	if (crash == -1) {
+		printf("primary-%d received an answer from %s to %s %s value=%ld\n", id, w_t->worker_name, w_t->client, w_t->task_name, w_t->answer);
+	}
 	
 	double complexity = 0.0;
 
@@ -925,6 +1050,7 @@ void treat_answer(msg_task_t t, int crash, int id) {
 			if (crash == 1) {
 				complexity++;
 				n->nb_crashed++;
+				n->nb_false_answers++;
 			}
 			else {
 				n->nb_answers_received++;
@@ -938,13 +1064,15 @@ void treat_answer(msg_task_t t, int crash, int id) {
 			}
 			if (((n->nb_answers_received + n->nb_crashed) == n->nb_forwarded) && (inAdditional_replication_tasks(n, id) == -1)) {
 				n->to_replicate = 0;
-				xbt_dynar_free(&(n->additional_workers));
-				n->additional_workers = xbt_dynar_new(sizeof(char) * MAILBOX_SIZE, NULL);
-				xbt_dynar_free(&(n->additional_reputations));
-				n->additional_reputations = xbt_dynar_new(sizeof(int), NULL);
+				if (n->additional_workers != NULL) {
+					xbt_dynar_free(&(n->additional_workers));
+					xbt_dynar_free(&(n->additional_reputations));
+				}
+				//n->additional_workers = xbt_dynar_new(sizeof(char) * MAILBOX_SIZE, NULL);
+				//xbt_dynar_free(&(n->additional_reputations));
+				//n->additional_reputations = xbt_dynar_new(sizeof(int), NULL);
 
 				compute_majoritary_answer(n, &nb_majoritary_answer, &max_value); 	
-				printf("value of max_value (cond2) %f\n", max_value);
 
 				printf("receive all the answers for %s %s\n", n->client, n->task_name);
 				if (simulator == SONNEK) {
@@ -952,8 +1080,9 @@ void treat_answer(msg_task_t t, int crash, int id) {
 				}
 				else {
 					// we simulate the algorithm used in ARANTES
-					send_answer_Arantes(n, nb_majoritary_answer, &process, max_value, id);
+					send_answer_Arantes(n, nb_majoritary_answer, &process, &stop_replication, max_value, id);
 				}
+				//free(n->w_answers);
 				complexity += 6.0;
 			}
 			complexity += 3.0;
@@ -961,14 +1090,17 @@ void treat_answer(msg_task_t t, int crash, int id) {
 		}
 	}
 	complexity += 5.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	
 	if (crash == 1) {
-		worker_from_active_group_to_suppression(w_t->worker_name, n, process, id);
+		worker_from_active_group_to_suppression(w_t->worker_name, n, process, stop_replication, id);
 	}
 	else {
-		worker_from_active_group_to_workers(w_t->worker_name, n, process, id);
+		worker_from_active_group_to_workers(w_t->worker_name, n, process, stop_replication, id);
 	}
+	//free(w_t);
 }
 
 
@@ -993,14 +1125,46 @@ void try_to_treat_additional_replication(int id) {
 			break;
 		}
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
-char * compute_name_file (int id) {
+void compute_name_file (int id) {
 	char * ret = (char *) malloc(sizeof(char) * FILE_NAME_SIZE);
+	char nb[3];
 
-	sprintf(ret, "../files_res/primary_%d_res_%d_workers", id, nb_workers);
+	if (centrality == CENTRALIZED) {
+		sprintf(ret, "../files_res/centralized_primary_%d_res_%dworkers_%dclients", id, nb_workers, nb_clients);
+	}
+	else {
+		if (blacklist == BLACKLIST) {
+			if (distributed_strategies == RANDOM) {
+				sprintf(ret, "../files_res/distributed_blacklist_random_primary_%d_res_%dworkers_%dclients", id, nb_workers, nb_clients);
+			}
+			else {
+				sprintf(ret, "../files_res/distributed_blacklist_reputations_primary_%d_res_%dworkers_%dclients", id, nb_workers, nb_clients);
+			}
+		}
+		else {
+			if (distributed_strategies == RANDOM) {
+				sprintf(ret, "../files_res/distributed_no_blacklist_random_primary_%d_res_%dworkers_%dclients", id, nb_workers, nb_clients);
+			}
+			else {
+				sprintf(ret, "../files_res/distributed_no_blacklist_reputations_primary_%d_res_%dworkers_%dclients", id, nb_workers, nb_clients);
+			}
+		}
+	}
+
+	if (random_target_LOC == RANDOM) {
+		strcat(ret, "_randomTargetLOC");
+	}
+	else {
+		strcat(ret, "_notRandomTargetLOC");
+	}
+
 
 	if (simulator == ARANTES) {
 		strcat(ret, "_arantes");
@@ -1023,7 +1187,10 @@ char * compute_name_file (int id) {
 	}
 	
 	if (group_formation_strategy == FIXED_FIT) {
-		strcat(ret, "_fixed_fit");
+		strcat(ret, "_");
+		sprintf(nb, "%d", group_formation_fixed_number);
+		strcat(ret, nb);
+		strcat(ret, "fixed_fit");	
 	}
 	else if (group_formation_strategy == FIRST_FIT) {
 		strcat(ret, "_first_fit");
@@ -1048,7 +1215,13 @@ char * compute_name_file (int id) {
 	}
 
 	strcat(ret, ".csv");
-	return ret;
+
+	if ((data_csv[id] = open(ret, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
+		printf("error open\n");
+		exit(1);
+	}
+
+	free(ret);
 }
 
 
@@ -1063,14 +1236,16 @@ void send_change(int id) {
 
 	printf("in send_change\n");
 	if (xbt_dynar_length(to_change_primary[id]) == 0) {
-		MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+		msg_task_t task_complexity = MSG_task_create("task_complexity", 2.0, 0, NULL);
+		MSG_task_execute(task_complexity);
+		MSG_task_destroy(task_complexity);
 		return;
 	}
 
 	complexity += 2.0;
 
 	printf("primary-%d: list of workers\n", id);
-	workers_print(&(workers[id]));
+	//workers_print(&(workers[id]));
 	printf("primary-%d: I have some nodes to give to others primaries\n", id);
 
 	xbt_dynar_foreach(to_change_primary[id], cpt, p_w) {
@@ -1082,7 +1257,7 @@ void send_change(int id) {
 	complexity = complexity + cpt;
  
 	printf("sending the change message to the first-primary\n");
-	MSG_task_isend(MSG_task_create("change", 0, sizeof(char) * (strlen("change") + size), toSend), first_primary_name);//&to_change_primary[id]), first_primary_name); 
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create("change", 0, sizeof(char) * (strlen("change") + size), toSend), first_primary_name));//&to_change_primary[id]), first_primary_name); 
 	unsigned int cpt1;
 	struct p_worker p_w1;
 	//char found = 0;
@@ -1112,13 +1287,15 @@ void send_change(int id) {
 	xbt_dynar_reset(to_change_primary[id]); 
 	printf("end of change\n");
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 1.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 1.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
 void try_load_balancing_random_overload (int id, char * mailbox) {
 	printf("enter try_load_balancing_random_overload\n");
-	MSG_task_isend(MSG_task_create("division", 0, strlen("division") * sizeof(char), mailbox), first_primary_name);
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create("division", 0, strlen("division") * sizeof(char), mailbox), first_primary_name));
 
 	int nb;	
 	int i;
@@ -1141,17 +1318,20 @@ void try_load_balancing_random_overload (int id, char * mailbox) {
 		printf("new worker added to send %s\n", p->mailbox);
 	}	
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + nb * 2.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + nb * 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
+// the primary keep the workers with the highest reputation and give those with the lowest
 void try_load_balancing_reputation_overload (int id, char * mailbox) {
 	printf("enter try_load_balancing_reputation_overload\n");
-	xbt_dynar_sort(workers[id], compare_reputation_workers_inverse);
+	xbt_dynar_sort(workers[id], compare_reputation_workers);//compare_reputation_workers_inverse);
 	struct reputations_loadBalancing * toSend = (struct reputations_loadBalancing *) malloc(sizeof(struct reputations_loadBalancing));
 
-	unsigned int cpt;
-	struct p_worker worker;
+	//unsigned int cpt;
+	struct p_worker * worker;
 	int nb;	
 	int i;
 	double complexity = 6.0;			
@@ -1165,28 +1345,39 @@ void try_load_balancing_reputation_overload (int id, char * mailbox) {
 		complexity += 4.0;
 	}
 
-	xbt_dynar_foreach(workers[id], cpt, worker) {
+	/*xbt_dynar_foreach(workers[id], cpt, worker) {
 		if (cpt == (nb - 1)) {
 			toSend->max_reputation = worker.reputation;
 			reputations_primary[id].value = worker.reputation;
 			complexity += 2.0;
 			break;
 		}
-	}
+	}*/
+/////////////////////////////////////////////////////////////////////////
+	worker = xbt_dynar_get_ptr(workers[id], xbt_dynar_length(workers[id]) - nb);
+	toSend->max_reputation = worker->reputation;
+	reputations_primary[id].value = worker->reputation;
+/////////////////////////////////////////////////////////////////////////
+
+
+
+
 	toSend->min_reputation = reputations_primary[id].min_reputation;				
 	strcpy(toSend->mailbox, mailbox);
 
-	complexity = complexity + 2.0 * cpt + 2.0;
+	complexity = complexity + 5.0 + 2.0;
 
-	MSG_task_isend(MSG_task_create("division", 0, strlen("division")*sizeof(char), toSend), first_primary_name);
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create("division", 0, strlen("division")*sizeof(char), toSend), first_primary_name));
 
 	for (i = 0; i < nb; i++) {
 		struct p_worker * p = (struct p_worker *) malloc(sizeof(struct p_worker));
-		xbt_dynar_remove_at(workers[id], i, p);
+		xbt_dynar_remove_at(workers[id], xbt_dynar_length(workers[id]) - 1, p);
 		xbt_dynar_push(toSend_loadBalancing[id]->workersToSend, p);
 	}
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + nb * 2.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + nb * 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1205,7 +1396,10 @@ void try_load_balancing_overload(int id, char * mailbox) {
 		}
 		complexity += 8.0;
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 1.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 1.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1220,14 +1414,20 @@ void stop_division (int id) {
 		xbt_dynar_pop(toSend_loadBalancing[id]->workersToSend, p);
 		xbt_dynar_push(toSend_loadBalancing[id]->workersToSend, p);
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", until * 2.0 + 2.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", until * 2.0 + 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
 void stop_fusion(int id) {
 	able_to_send_fusion[id] = -1;
 	doing_fusion[id] = -1;
-	MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+	
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1242,12 +1442,13 @@ void treat_division_overload(msg_task_t task, int id) {
 		reputations_primary[id].min_reputation = reputations_primary[id].value;
 		complexity += 3.0;
 	}
-	printf("primary0: range of reputations %d %d\n", reputations_primary[0].min_reputation, reputations_primary[0].max_reputation);
-	printf("primary1: range of reputations %d %d\n", reputations_primary[1].min_reputation, reputations_primary[1].max_reputation);
-	MSG_task_isend(MSG_task_create("give_workers", 0, sizeof(toSend_loadBalancing[id]), toSend_loadBalancing[id]), (char *) MSG_task_get_data(task)); 
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create("give_workers", 0, sizeof(toSend_loadBalancing[id]), toSend_loadBalancing[id]), (char *) MSG_task_get_data(task))); 
 
 	toSend_loadBalancing[id] = lb;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 3.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 3.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1265,18 +1466,21 @@ void treat_give_workers(msg_task_t task, int id, char * mailbox) {
 		xbt_dynar_pop(lb->workersToSend, worker);
 		xbt_dynar_push(workers[id], worker);
 		printf("%s: I receive the worker %s with reputations %d\n", mailbox, worker->mailbox, worker->reputation);
-		printf("primary0: range of reputations %d %d\n", reputations_primary[0].min_reputation, reputations_primary[0].max_reputation);
-		printf("primary1: range of reputations %d %d\n", reputations_primary[1].min_reputation, reputations_primary[1].max_reputation);
-		MSG_task_isend(MSG_task_create("ack", 0, (strlen("ack") + strlen(mailbox)) * sizeof(char), mailbox), worker->mailbox);
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create("ack", 0, (strlen("ack") + strlen(mailbox)) * sizeof(char), mailbox), worker->mailbox));
 	}
 
-	MSG_task_execute(MSG_task_create("task_complexity", until * 2.0 + 4.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", until * 2.0 + 4.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
 void forward_to_first_primary(msg_task_t task) {
-	MSG_task_isend(MSG_task_create(MSG_task_get_name(task), 0, MSG_task_get_data_size(task), MSG_task_get_data(task)), first_primary_name); 
-	MSG_task_execute(MSG_task_create("task_complexity", 3.0, 0, NULL));
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create(MSG_task_get_name(task), 0, MSG_task_get_data_size(task), MSG_task_get_data(task)), first_primary_name)); 
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 3.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1297,10 +1501,13 @@ void execute_fusion (int id) {
 		toSend->max = reputations_primary[id].max_reputation;
 		complexity += 2.0;
 	}
-	MSG_task_isend(MSG_task_create("workers_to_fuse", 0, strlen("workers_to_fuse") * sizeof(char) + sizeof(toSend), toSend), first_primary_name);
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create("workers_to_fuse", 0, strlen("workers_to_fuse") * sizeof(char) + sizeof(toSend), toSend), first_primary_name));
 
 	complexity = complexity + until * 2.0 + 1.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1308,7 +1515,10 @@ void update_limit_max (msg_task_t task, int id) {
 	char * new_limit = (char *)MSG_task_get_data(task);
 
 	reputations_primary[id].max_reputation = *new_limit;
-	MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1316,7 +1526,10 @@ void update_limit_min(msg_task_t task, int id) {
 	char * new_limit = (char *)MSG_task_get_data(task);
 
 	reputations_primary[id].min_reputation = *new_limit;
-	MSG_task_execute(MSG_task_create("task_complexity", 2.0, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -1331,24 +1544,25 @@ void destroy_content_fifo(xbt_fifo_t * f) {
 
 
 int primary (int argc, char * argv[]) {
+	printf("primary start\n");
 	unsigned long int id;
 	char myMailbox[MAILBOX_SIZE];
-	char simulation_file[FILE_NAME_SIZE];
 	msg_task_t task_todo = NULL;
-	char first = 1;
-	int nb_clients;
+	//int nb_clients;
 	int nb_finalize = 0;
+	msg_task_t task_complexity;
 
 	if (argc != 3) {
+		printf("here in the primary\n");
 		exit(1);
 	}
 
 	id = atoi(argv[1]);
 
-	if (centrality == CENTRALIZED) {
+	/*if (centrality == CENTRALIZED) {
 		nb_clients = atoi(argv[2]);
-	}
-	else {
+	}*/
+	if (centrality == DISTRIBUTED) {
 		if (id == 0) {
 			strcpy(first_primary_name, argv[2]);
 			reputations_primary[id].min_reputation = 0;
@@ -1360,11 +1574,8 @@ int primary (int argc, char * argv[]) {
 	
 	sprintf(myMailbox, "primary-%ld", id);
 
-	strcpy(simulation_file, compute_name_file(id));
-	if ((data_csv[id] = open(simulation_file, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
-		printf("error open\n");
-		exit(1);
-	}
+	compute_name_file(id);
+
 
 	workers[id] = xbt_dynar_new(sizeof(struct p_worker), NULL);
 	tasks[id] = xbt_fifo_new();
@@ -1373,6 +1584,7 @@ int primary (int argc, char * argv[]) {
 	additional_replication_tasks[id] = xbt_fifo_new();
 	to_change_primary[id] = xbt_dynar_new(sizeof(struct p_worker), NULL);
 	toSend_loadBalancing[id]->workersToSend = xbt_dynar_new(sizeof(struct p_worker), NULL);
+
 
 	while (1) {
 		// reception of a message
@@ -1384,72 +1596,69 @@ int primary (int argc, char * argv[]) {
 			printf("%s: I receive finalize\n", myMailbox);
 			if (centrality == CENTRALIZED) {
 				nb_finalize++;
-				if (nb_finalize == nb_clients) {
-					if (nb_workers_for_stationary >= stationary_regime) {
-						char end_simulation[BUFFER_SIZE];
-						sprintf(end_simulation, "%f;\n", MSG_get_clock());	
-						write(data_csv[id], end_simulation, sizeof(char) * strlen(end_simulation));
-					}				
+				if (nb_finalize == nb_clients) {		
 					// if all clients have finish to send requests, the primary ask the workers to stop
 					send_finalize_to_workers(id); 
 					break;
 				}
 			}
-			else {
-				if (nb_workers_for_stationary >= stationary_regime) {
-					char end_simulation[BUFFER_SIZE];
-					sprintf(end_simulation, "%f;\n", MSG_get_clock());	
-					write(data_csv[id], end_simulation, sizeof(char) * strlen(end_simulation));		
-				}		
+			else {	
 				// if all clients have finish to send requests, the primary ask the workers to stop
 				send_finalize_to_workers(id); 
 				break;
 			}
 		}
-		else if (!strncmp(MSG_task_get_name(task_todo), "task", sizeof(char) * strlen("task"))) {
-			if (nb_workers_for_stationary >= stationary_regime) {
-				if (first == 1) {
-					first = -1;
-					char start_simulation[BUFFER_SIZE];
-					sprintf(start_simulation, "%f;\n", MSG_get_clock());
-					write(data_csv[id], start_simulation, sizeof(char) * strlen(start_simulation)); 
-				}
-			}
-			if (doing_fusion[id] == -1) {
-				// the primary put the task to do in a fifo
-				printf("%s: I receive a task\n", myMailbox);
+		else if (!strncmp(MSG_task_get_name(task_todo), "task", strlen("task"))) {
+			printf("%s: I receive a task\n", myMailbox);
+			if (centrality == CENTRALIZED) {
 				put_task_fifo(task_todo, id);
-				if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
-					send_change(id);
-				}
 				try_to_treat_tasks(myMailbox, id);
 			}
 			else {
-				forward_to_first_primary(task_todo);
+				if (doing_fusion[id] == -1) {
+					// the primary put the task to do in a fifo
+					put_task_fifo(task_todo, id);
+					if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
+						send_change(id);
+					}
+					try_to_treat_tasks(myMailbox, id);
+				}
+				else {
+					forward_to_first_primary(task_todo);
+				}
 			}
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "join", sizeof(char) * strlen("join"))) {
-			if (doing_fusion[id] == -1) {
-				// a worker want to join the system		
-				printf("%s: I receive a join\n", myMailbox);	
+			printf("%s: I receive a join\n", myMailbox);
+			if (centrality == CENTRALIZED) {
 				add_new_worker((char *)MSG_task_get_data(task_todo), myMailbox, id);
-				if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
-					send_change(id);
-				}
-				try_load_balancing_overload(id, myMailbox);
 				if (simulator == ARANTES) {
 					try_to_treat_additional_replication(id);
 				}
 				try_to_treat_tasks(myMailbox, id);
 			}
 			else {
-				forward_to_first_primary(task_todo);
+				if (doing_fusion[id] == -1) {
+					// a worker want to join the system			
+					add_new_worker((char *)MSG_task_get_data(task_todo), myMailbox, id);
+					if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
+						send_change(id);
+					}
+					try_load_balancing_overload(id, myMailbox);
+					if (simulator == ARANTES) {
+						try_to_treat_additional_replication(id);
+					}
+					try_to_treat_tasks(myMailbox, id);
+				}
+				else {
+					forward_to_first_primary(task_todo);
+				}
 			}
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "change", sizeof(char) * strlen("change"))) {
+			printf("%s: I receive a change\n", myMailbox);
 			if (doing_fusion[id] == -1) {
 				// a worker want to join the system			
-				printf("%s: I receive a change\n", myMailbox);
 				add_new_worker_change(task_todo, myMailbox, id);
 				if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
 					send_change(id);
@@ -1465,17 +1674,26 @@ int primary (int argc, char * argv[]) {
 			}
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "answer", sizeof(char) * strlen("answer"))) {
-			// the primary receive an answer to a request from a worker
 			printf("%s: I receive an answer\n", myMailbox);
-			treat_answer(task_todo, -1, id);
-			if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
-				send_change(id);
-			}		
-			try_load_balancing_overload(id, myMailbox);	
-			if (simulator == ARANTES) {
-				try_to_treat_additional_replication(id);
+			// the primary receive an answer to a request from a worker
+			if (centrality == CENTRALIZED) {
+				treat_answer(task_todo, -1, id);
+				if (simulator == ARANTES) {
+					try_to_treat_additional_replication(id);
+				}
+				try_to_treat_tasks(myMailbox, id);
 			}
-			try_to_treat_tasks(myMailbox, id);
+			else {
+				treat_answer(task_todo, -1, id);
+				if ((centrality == DISTRIBUTED) && (distributed_strategies == REPUTATIONS)) {
+					send_change(id);
+				}		
+				try_load_balancing_overload(id, myMailbox);	
+				if (simulator == ARANTES) {
+					try_to_treat_additional_replication(id);
+				}
+				try_to_treat_tasks(myMailbox, id);
+			}
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "crash", sizeof(char) * strlen("crash"))) {
 			printf("%s: I receive a message indicating the crash of %s\n", myMailbox, (char *) MSG_task_get_data(task_todo));
@@ -1484,22 +1702,38 @@ int primary (int argc, char * argv[]) {
 		else if (!strncmp(MSG_task_get_name(task_todo), "able_fusion", sizeof(char) * strlen("able_fusion"))) {
 			printf("%s: I receive a message able_fusion\n", myMailbox);
 			able_to_send_fusion[id] = 1;
-			MSG_task_execute(MSG_task_create("task_complexity", 1.0, 0, NULL));
+
+			task_complexity = MSG_task_create("task_complexity", 1.0, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
+			task_complexity = NULL;
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "able_division", sizeof(char) * strlen("able_division"))) {
 			printf("%s: I receive a message able_division\n", myMailbox);
 			able_to_send_division[id] = 1;
-			MSG_task_execute(MSG_task_create("task_complexity", 1.0, 0, NULL));
+
+			task_complexity = MSG_task_create("task_complexity", 1.0, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
+			task_complexity = NULL;
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "unable_fusion", sizeof(char) * strlen("unable_fusion"))) {
 			printf("%s: I receive a message unable_fusion\n", myMailbox);
 			able_to_send_fusion[id] = -1;
-			MSG_task_execute(MSG_task_create("task_complexity", 1.0, 0, NULL));
+			
+			task_complexity = MSG_task_create("task_complexity", 1.0, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
+			task_complexity = NULL;
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "unable_division", sizeof(char) * strlen("unable_division"))) {
 			printf("%s: I receive a message unable_division\n", myMailbox);
 			able_to_send_division[id] = -1;
-			MSG_task_execute(MSG_task_create("task_complexity", 1.0, 0, NULL));
+			
+			task_complexity = MSG_task_create("task_complexity", 1.0, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
+			task_complexity = NULL;
 		}		
 		else if (!strncmp(MSG_task_get_name(task_todo), "unack_division", sizeof(char) * strlen("unack_division"))) {
 			printf("%s: I receive a message unack_division\n", myMailbox);
@@ -1522,14 +1756,10 @@ int primary (int argc, char * argv[]) {
 			treat_give_workers(task_todo, id, myMailbox);
 		}	
 		else if (!strncmp(MSG_task_get_name(task_todo), "limit_max", sizeof(char) * strlen("limit_max"))) {
-			printf("primary0: range of reputations %d %d\n", reputations_primary[0].min_reputation, reputations_primary[0].max_reputation);
-			printf("primary1: range of reputations %d %d\n", reputations_primary[1].min_reputation, reputations_primary[1].max_reputation);
 			printf("%s: I receive a message limit_max\n", myMailbox);
 			update_limit_max(task_todo, id);
 		}
 		else if (!strncmp(MSG_task_get_name(task_todo), "limit_min", sizeof(char) * strlen("limit_min"))) {
-			printf("primary0: range of reputations %d %d\n", reputations_primary[0].min_reputation, reputations_primary[0].max_reputation);
-			printf("primary1: range of reputations %d %d\n", reputations_primary[1].min_reputation, reputations_primary[1].max_reputation);	
 			printf("%s: I receive a message limit_min\n", myMailbox);
 			update_limit_min(task_todo, id);
 		}	

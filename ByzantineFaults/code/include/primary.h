@@ -98,7 +98,11 @@ struct loadBalancing ** toSend_loadBalancing;
 
 char * doing_fusion;
 
-volatile int nb_workers_for_stationary;
+int nb_workers_for_stationary;
+
+int nb_answers_written_data_csv;
+
+
 
 
 void tasks_print(int id);
@@ -143,21 +147,21 @@ double valueCond2 (struct p_answer_worker * res, struct p_task * p_t);
 // this function permits to know the number of answers that have the same number of workers (nb_majority_answer)
 void compute_majoritary_answer(struct p_task * p_t, int * nb_majoritary_answer, double * min_value);
 
-void writes_data (char * client_name, char * task_name, double time_start_task, char fail, unsigned int long answer, long int number_workers_used, int id);
+void writes_data (char * client_name, char * task_name, double time_start_task, char fail, unsigned int long answer, long int number_workers_used, double targetLOC, int id);
 
 void send_answer_Sonnek(struct p_task * n, int nb_majoritary_answer, char * process, int id);
 
-void replication(struct p_task * n, int id);
+char replication(struct p_task * n, int id);
 
-void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, double max_value, int id);
+void send_answer_Arantes(struct p_task * n, int nb_majoritary_answer, char * process, char * stop_replication, double max_value, int id);
 
 int inAdditional_replication_tasks (struct p_task * p_t, int id);
 
 void suppress_processing_tasks_and_active_group(struct p_task * n, int id);
 
-void worker_from_active_group_to_workers(char * name, struct p_task * n, int process, int id);
+void worker_from_active_group_to_workers(char * name, struct p_task * n, int process, int stop_replication, int id);
 
-void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process, int id);
+void worker_from_active_group_to_suppression(char * name, struct p_task * n, int process, int stop_replication, int id);
 
 void treat_answer(msg_task_t t, int crash, int id);
 
@@ -165,7 +169,7 @@ void try_to_treat_additional_replication(int id);
 
 void treat_crash(msg_task_t task_todo);
 
-char * compute_name_file (int id);
+void compute_name_file (int id);
 
 void send_change(int id);
 

@@ -33,7 +33,7 @@ TARGET_LINK_LIBRARIES(my_boinc simgrid) #to include simgrid
         #DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 IF(WARNINGS_ARE_ERRORS)
-  set(warnCFLAGS "-Wall -Wunused -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wno-clobbered -Wno-unused-function -Wno-unused-parameter -Wno-strict-aliasing -Wno-format-nonliteral -Werror ")
+  set(warnCFLAGS "-Wall -Wunused -Wmissing-prototypes -pg -Wmissing-declarations -Wpointer-arith -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wno-clobbered -Wno-unused-function -Wno-unused-parameter -Wno-strict-aliasing -Wno-format-nonliteral -Werror ")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${warnCFLAGS}")
 ENDIF(WARNINGS_ARE_ERRORS)
 

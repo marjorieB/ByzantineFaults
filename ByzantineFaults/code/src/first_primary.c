@@ -20,7 +20,7 @@ void send_finalize_to_primaries () {
 		MSG_task_send(finalize, p.name);
 	}
 
-	printf("first-primary %ld\n", xbt_dynar_length(inactive_primaries));
+	//printf("first-primary %ld\n", xbt_dynar_length(inactive_primaries));
 
 	unsigned int nb;
 	struct primary primary;
@@ -32,7 +32,9 @@ void send_finalize_to_primaries () {
 
 	complexity = complexity + xbt_dynar_length(active_primaries) + xbt_dynar_length(inactive_primaries);
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -41,15 +43,17 @@ void send_task_random(msg_task_t task) {
 	struct primary * p = xbt_dynar_get_ptr(active_primaries, nb_rand);
 
 	if (!strcmp(MSG_task_get_name(task), "join")) {
-		printf("first-primary: I forward the join to primary-%d %s\n", nb_rand, MSG_task_get_name(task));
-		MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), MSG_task_get_data(task)), p->name);
+		//printf("first-primary: I forward the join to primary-%d %s\n", nb_rand, MSG_task_get_name(task));
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), MSG_task_get_data(task)), p->name));
 	}
 	else {
-		printf("first-primary: I forward the %s to primary-%d\n", MSG_task_get_name(task), nb_rand);
-		MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, MSG_task_get_data(task)), p->name);
+		//printf("first-primary: I forward the %s to primary-%d\n", MSG_task_get_name(task), nb_rand);
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, MSG_task_get_data(task)), p->name));
 	}
 
-	MSG_task_execute(MSG_task_create("task_complexity", 10.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", 10.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -70,8 +74,11 @@ void send_join_reputations(msg_task_t task) {
 		}
 	}
 
-	MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), data), pSend->name);
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 4.0 + cpt * 2.0, 0, NULL));
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), data), pSend->name));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 4.0 + cpt * 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -92,9 +99,11 @@ void send_task_reputations(msg_task_t task) {
 		}
 	}
 
-	MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, data), pSend->name);
+	MSG_comm_destroy(MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, data), pSend->name));
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + cpt * 4.0 + 3.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + cpt * 4.0 + 3.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -104,7 +113,7 @@ void treat_change(msg_task_t task) {
 	double complexity = 1.0;
 
 	workers_array = (xbt_dynar_t *)MSG_task_get_data(task);
-	printf("size of the workers_array %ld\n", xbt_dynar_length(*workers_array));
+	//printf("size of the workers_array %ld\n", xbt_dynar_length(*workers_array));
 
 	unsigned int cpt;
 	struct p_worker p_w;
@@ -115,7 +124,7 @@ void treat_change(msg_task_t task) {
 		struct p_worker * workerToSend = (struct p_worker *)malloc(sizeof(struct p_worker));
 		struct primary * toSend;
 		
-		printf("worker treated: name=%s, reputation=%d\n", p_w.mailbox, p_w.reputation);
+		//printf("worker treated: name=%s, reputation=%d\n", p_w.mailbox, p_w.reputation);
 
 		xbt_dynar_foreach(active_primaries, nb, p) {
 			if ((p_w.reputation >= p.min_reputation) && (p_w.reputation < p.max_reputation)) {
@@ -126,10 +135,12 @@ void treat_change(msg_task_t task) {
 		complexity = complexity + nb * 2.0 + 1.0 + 1.0;	
 
 		workerToSend = xbt_dynar_get_ptr(*workers_array, cpt); 
-		MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), (strlen(workerToSend->mailbox) + strlen(MSG_task_get_name(task))) * sizeof(char), workerToSend), toSend->name);
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), (strlen(workerToSend->mailbox) + strlen(MSG_task_get_name(task))) * sizeof(char), workerToSend), toSend->name));
 	}
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -165,7 +176,7 @@ void treat_division(msg_task_t task) {
 		}
 
 		xbt_dynar_push(active_primaries, p);
-		MSG_task_isend(MSG_task_create("ack_division", 0, (strlen("ack_division") + strlen(p->name)) * sizeof(char), p->name), mailbox); 
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create("ack_division", 0, (strlen("ack_division") + strlen(p->name)) * sizeof(char), p->name), mailbox)); 
 	
 		complexity += 8.0;
 
@@ -175,12 +186,12 @@ void treat_division(msg_task_t task) {
 
 			able_fusion = 1;
 			xbt_dynar_foreach(active_primaries, nb, prim) {
-				MSG_task_isend(MSG_task_create("able_fusion", 0, strlen("able_fusion") * sizeof(char), NULL), prim.name);
+				MSG_comm_destroy(MSG_task_isend(MSG_task_create("able_fusion", 0, strlen("able_fusion") * sizeof(char), NULL), prim.name));
 			}
 			unsigned int nb1;
 			struct primary prim1;
 			xbt_dynar_foreach(inactive_primaries, nb1, prim1) {
-				MSG_task_isend(MSG_task_create("able_fusion", 0, strlen("able_fusion") * sizeof(char), NULL), prim1.name);
+				MSG_comm_destroy(MSG_task_isend(MSG_task_create("able_fusion", 0, strlen("able_fusion") * sizeof(char), NULL), prim1.name));
 			}		
 
 			complexity = complexity + xbt_dynar_length(active_primaries) + xbt_dynar_length(inactive_primaries) + 1.0;
@@ -192,22 +203,24 @@ void treat_division(msg_task_t task) {
 
 			able_division = -1;
 			xbt_dynar_foreach(active_primaries, nb, prim) {
-				MSG_task_isend(MSG_task_create("unable_division", 0, strlen("unable_division") * sizeof(char), NULL), prim.name);
+				MSG_comm_destroy(MSG_task_isend(MSG_task_create("unable_division", 0, strlen("unable_division") * sizeof(char), NULL), prim.name));
 			}
 			unsigned int nb1;
 			struct primary prim1;
 
 			xbt_dynar_foreach(inactive_primaries, nb1, prim1) {
-				MSG_task_isend(MSG_task_create("unable_division", 0, strlen("unable_division") * sizeof(char), NULL), prim1.name);
+				MSG_comm_destroy(MSG_task_isend(MSG_task_create("unable_division", 0, strlen("unable_division") * sizeof(char), NULL), prim1.name));
 			}
 			complexity = complexity + xbt_dynar_length(active_primaries) + xbt_dynar_length(inactive_primaries) + 1.0; 
 		}
 	}
 	else {
-		MSG_task_isend(MSG_task_create("unack_division", 0, strlen("unack_division") * sizeof(char), NULL), MSG_task_get_data(task));
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create("unack_division", 0, strlen("unack_division") * sizeof(char), NULL), MSG_task_get_data(task)));
 	}
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -228,29 +241,31 @@ void treat_fusion(msg_task_t task) {
 		xbt_dynar_remove_at(active_primaries, cpt, primary);
 		xbt_dynar_push(inactive_primaries, primary);
 
-		MSG_task_isend(MSG_task_create("ack_fusion", 0, strlen("ack_fusion") * sizeof(char), NULL), (char *)MSG_task_get_data(task));
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create("ack_fusion", 0, strlen("ack_fusion") * sizeof(char), NULL), (char *)MSG_task_get_data(task)));
 
 		complexity = complexity + cpt + 4.0;
 
 		if (xbt_dynar_length(active_primaries) == 1) {
 			able_fusion = -1;
 			struct primary * toSend = xbt_dynar_get_ptr(active_primaries, 0);
-			MSG_task_isend(MSG_task_create("unable_fusion", 0, strlen("unable_fusion") * sizeof(char), NULL), toSend->name);
+			MSG_comm_destroy(MSG_task_isend(MSG_task_create("unable_fusion", 0, strlen("unable_fusion") * sizeof(char), NULL), toSend->name));
 			
 			unsigned int nb;
 			struct primary p;
 		
 			xbt_dynar_foreach(inactive_primaries, nb, p) {
-				MSG_task_isend(MSG_task_create("unable_fusion", 0, strlen("unable_fusion") * sizeof(char), NULL), p.name);
+				MSG_comm_destroy(MSG_task_isend(MSG_task_create("unable_fusion", 0, strlen("unable_fusion") * sizeof(char), NULL), p.name));
 			}
 			complexity = 2.0 + nb;
 		}
 	}
 	else {
-		MSG_task_isend(MSG_task_create("unack_fusion", 0, strlen("unack_fusion") * sizeof(char), NULL), (char *)MSG_task_get_data(task));
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create("unack_fusion", 0, strlen("unack_fusion") * sizeof(char), NULL), (char *)MSG_task_get_data(task)));
 	}
 	
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -307,8 +322,8 @@ void treat_workers_to_fuse(msg_task_t task) {
 			if (found != 1) {
 				p_min_min->max_reputation = limit[1];
 				p_min_max->min_reputation = limit[1];
-				MSG_task_isend(MSG_task_create("limit_max", 0, (strlen("limit_max") + 1)*sizeof(char), limit), p_min_min->name);
-				MSG_task_isend(MSG_task_create("limit_min", 0, (strlen("limit_min") + 1)*sizeof(char), limit), p_min_max->name);
+				MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_max", 0, (strlen("limit_max") + 1)*sizeof(char), limit), p_min_min->name));
+				MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_min", 0, (strlen("limit_min") + 1)*sizeof(char), limit), p_min_max->name));
 			
 				unsigned int nb;
 				struct primary prim;
@@ -323,14 +338,17 @@ void treat_workers_to_fuse(msg_task_t task) {
 			}
 		}
 
-		MSG_task_isend(MSG_task_create("change", MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), p_w), p->name);
+		MSG_comm_destroy(MSG_task_isend(MSG_task_create("change", MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), p_w), p->name));
 	}	
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity + 2.0, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 2.0, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
 int first_primary (int argc, char * argv[]) {
+	//printf("first-primary start\n");
 	unsigned long int id;
 	char myMailbox[MAILBOX_SIZE];
 	msg_task_t task = NULL;
@@ -375,17 +393,17 @@ int first_primary (int argc, char * argv[]) {
 		/* the primary can receive 4 types of messages: requests from client, 
 			finalization from client, join from workers, or answer to tasks of workers */
 		if (!strncmp(MSG_task_get_name(task), "finalize", strlen("finalize"))) {
-			printf("%s: I receive finalize\n", myMailbox);
+			//printf("%s: I receive finalize\n", myMailbox);
 			nb_finalize++;	
 			if (nb_finalize == nb_clients) {		
-				printf("first-primary: forwarding the finalize message\n");	
+				//printf("first-primary: forwarding the finalize message\n");	
 				// if all clients have finish to send requests, the primary ask the workers to stop
 				send_finalize_to_primaries(); 
 				break;
 			}
 		}
 		else if (!strncmp(MSG_task_get_name(task), "task", sizeof(char) * strlen("task"))) {
-			printf("first-primary: I receive a task\n");
+			//printf("first-primary: I receive a task\n");
 			if (distributed_strategies == RANDOM) {
 				send_task_random(task);	
 			}
@@ -394,7 +412,7 @@ int first_primary (int argc, char * argv[]) {
 			}
 		}
 		else if (!strcmp(MSG_task_get_name(task), "join")) {
-			printf("first-primary: I receive a join\n");
+			//printf("first-primary: I receive a join\n");
 			if (distributed_strategies == RANDOM) {
 				send_task_random(task);
 			}
@@ -403,25 +421,25 @@ int first_primary (int argc, char * argv[]) {
 			}
 		}
 		else if (!strcmp(MSG_task_get_name(task), "change")) {
-			printf("first-primary: I receive a change, treating it\n");
+			//printf("first-primary: I receive a change, treating it\n");
 			treat_change(task);
 		}
 		else if (!strcmp(MSG_task_get_name(task), "division")) {
-			printf("first-primary: I receive a division, treating it\n");
+			//printf("first-primary: I receive a division, treating it\n");
 			treat_division(task);
-			printf("number of acitve_primaries %ld\n", xbt_dynar_length(active_primaries));
+			//printf("number of acitve_primaries %ld\n", xbt_dynar_length(active_primaries));
 		}
 		else if (!strcmp(MSG_task_get_name(task), "fusion")) {
-			printf("first-primary: I receive a fusion, treating it\n");
+			//printf("first-primary: I receive a fusion, treating it\n");
 			treat_fusion(task);
 		}
 		else if (!strcmp(MSG_task_get_name(task), "workers_to_fuse")) {
-			printf("first-primary: I receive a workers_to_fuse\n");
+			//printf("first-primary: I receive a workers_to_fuse\n");
 			treat_workers_to_fuse(task);
 		}
 		else {
 			// messages incorrect
-			printf("%s: I receive an incorrect message\n", myMailbox);
+			//printf("%s: I receive an incorrect message\n", myMailbox);
 		}
 		MSG_task_destroy(task);
 		task = NULL;

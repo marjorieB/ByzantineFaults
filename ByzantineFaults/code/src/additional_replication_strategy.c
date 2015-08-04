@@ -9,6 +9,7 @@ int verify (struct p_task * p_t, struct p_worker w) {
 	unsigned int cpt;
 	struct p_answer_worker p_a_w;
 	double complexity = 0.0;
+	msg_task_t task_complexity;
 
 	printf("in verify\n");
 	xbt_dynar_foreach(p_t->w_answers, cpt, p_a_w) {
@@ -20,13 +21,17 @@ int verify (struct p_task * p_t, struct p_worker w) {
 		xbt_dynar_foreach(p_a_w.worker_names, nb, name) {
 			printf("name of the worker %s\n", name); 
 			if (!strcmp(w.mailbox, name)) {
-				MSG_task_execute(MSG_task_create("task_complexity", complexity + nb, 0, NULL));
+				task_complexity = MSG_task_create("task_complexity", complexity + nb, 0, NULL);
+				MSG_task_execute(task_complexity);
+				MSG_task_destroy(task_complexity);
 				return -1;
 			}
 		}
 		complexity += nb;
 	}
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	return 1;
 }
 
@@ -45,14 +50,14 @@ void find_workers_fixed_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int *
 			printf("%s haven't already execute this request\n", tmp->mailbox);
 			// we need to put the worker in the active group and to send it the task
 			xbt_dynar_push(*(xbt_dynar_t *)(xbt_fifo_get_item_content(p_t->active_workers)), tmp);
-			groups_print(&(active_groups[id]));
+			//groups_print(&(active_groups[id]));
 			*nb_replications = *nb_replications - 1;
 			p_t->nb_forwarded++;
 
 			complexity += 4.0;
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_isend(to_send, tmp->mailbox);
+			MSG_task_send(to_send, tmp->mailbox);
 		}
 		else {
 			printf("the node has already been used for this task we put it in array_tmp\n");
@@ -63,7 +68,10 @@ void find_workers_fixed_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int *
 		complexity += 8.0;
 	}	
 	complexity += 3.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
@@ -107,7 +115,10 @@ double valueCond2_replication (struct p_task * p_t) {
 
 	printf("value of cond2 : %f\n", (Psc / (tmp + Psc)));
 
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));	
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);	
 	return (Psc / (tmp + Psc));
 }
 
@@ -118,9 +129,9 @@ void replication_fixed_fit (struct p_task * p_t, int id) {
 	int nb;
 	double complexity = 0.0;
 
-	workers_print(&(workers[id]));
+	//workers_print(&(workers[id]));
 	printf("active group\n");
-	groups_print(&(active_groups[id]));
+	//groups_print(&(active_groups[id]));
 
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 	xbt_dynar_t array_tmp = xbt_dynar_new(sizeof(struct p_worker), NULL);
@@ -161,22 +172,26 @@ void replication_fixed_fit (struct p_task * p_t, int id) {
 		xbt_dynar_pop(array_tmp, tmp);
 		xbt_dynar_push(workers[id], tmp);
 	}
-	workers_print(&(workers[id]));
+	//workers_print(&(workers[id]));
 	complexity = complexity + 1.0 + 2.0 * nb;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }
 
 
-int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id) {
+int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications_max, int id) {
 	double complexity = 0.0;
+	msg_task_t task_complexity;
 
 	// sort the array of workers
-	xbt_dynar_sort(workers[id], compare_reputation_workers);
+	xbt_dynar_sort(workers[id], compare_reputation_workers_inverse);
 
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 
 	while (xbt_dynar_length(workers[id]) > 0) {
-		xbt_dynar_remove_at(workers[id], FIRST_ITEM, (void *)tmp);
+		xbt_dynar_remove_at(workers[id], xbt_dynar_length(workers[id]) - 1, (void *)tmp);
 		printf("the node chosen is %s\n", tmp->mailbox);
 		// we need to check if the node wasn't already used for that task
 		if (verify(p_t, *tmp) == 1) {
@@ -188,11 +203,14 @@ int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id
 			xbt_dynar_push(p_t->additional_reputations, &(tmp->reputation));
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_isend(to_send, tmp->mailbox);
+			MSG_task_send(to_send, tmp->mailbox);
+			*nb_replications_max = *nb_replications_max - 1;
 
-			complexity += 11.0;
-			if (valueCond2_replication(p_t) > (1 - p_t->targetLOC)) {
-				MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+			complexity += 12.0;
+			if ((valueCond2_replication(p_t) > (1 - p_t->targetLOC)) || (*nb_replications_max == 0)) {
+				task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+				MSG_task_execute(task_complexity);
+				MSG_task_destroy(task_complexity);
 				printf("replication done: 1 - targetLOC = %f\n", 1 - p_t->targetLOC);
 				return 1;
 			}
@@ -206,7 +224,9 @@ int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id
 		}
 	}	
 	complexity += 2.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 	return -1;
 }
 
@@ -215,16 +235,19 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 	struct p_worker * toAdd = (struct p_worker *) malloc(sizeof(struct p_worker));
 	double ret;
 	double complexity = 0.0;
+	msg_task_t task_complexity;
 
 	if (index == FIRST_ITEM) {
 		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
-		workers_print(&(workers[id]));
+		//workers_print(&(workers[id]));
 		if (verify (p_t, *toAdd) == -1) {
 			printf("the node %s has already execute the task %s\n", toAdd->mailbox, p_t->task_name);
 			// the node can't be added to execute this task
 			xbt_dynar_push (*array_tmp, toAdd);
 			complexity += 4.0;
-			MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+			task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
 			return -1;
 		}
 		else {
@@ -233,23 +256,27 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 			xbt_dynar_push(p_t->additional_workers, toAdd);
 			xbt_dynar_push(p_t->additional_reputations, &(toAdd->reputation));
 			complexity += 8.0;
-			MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+			task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_isend(to_send, toAdd->mailbox);
+			MSG_task_send(to_send, toAdd->mailbox);
 
 			return valueCond2_replication(p_t);
 		}
 	}
 	else {	
 		xbt_dynar_remove_at(workers[id], index, (void *)toAdd);
-		workers_print(&(workers[id]));
+		//workers_print(&(workers[id]));
 		if (verify (p_t, *toAdd) == -1) {
 			printf("the node %s has already execute the task %s\n", toAdd->mailbox, p_t->task_name);
 			// the node can't be added to execute this task
 			xbt_dynar_push(*array_tmp, toAdd);
 			complexity += 4.0;
-			MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+			task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+			MSG_task_execute(task_complexity);
+			MSG_task_destroy(task_complexity);
 			return -1;
 		}
 		else {
@@ -263,10 +290,12 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 				p_t->nb_forwarded++;
 
 				complexity += 11.0;
-				MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+				task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+				MSG_task_execute(task_complexity);
+				MSG_task_destroy(task_complexity);
 
 				msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-				MSG_task_isend(to_send, toAdd->mailbox);
+				MSG_task_send(to_send, toAdd->mailbox);
 
 				return ret;
 			}
@@ -277,7 +306,9 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 				xbt_dynar_insert_at(workers[id], index, toAdd);
 
 				complexity += 11.0;
-				MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+				task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+				MSG_task_execute(task_complexity);
+				MSG_task_destroy(task_complexity);
 
 				return binary_search_one_replication(p_t, array_tmp, index / 2, id);
 			}
@@ -286,7 +317,7 @@ double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tm
 }
 
 
-int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id) {
+int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications_max, int id) {
 	// sort the array of workers
 	xbt_dynar_sort(workers[id], compare_reputation_workers);
 
@@ -307,7 +338,7 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id
 	}
 	complexity = 3.0 + cpt + 2.0;
 
-	workers_print(&(workers[id]));
+	//workers_print(&(workers[id]));
 	printf("value of index %d\n", index);
 
 	while (index >= FIRST_ITEM) {
@@ -315,16 +346,22 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id
 		printf("index %d\n", index); 
 		value_res = binary_search_one_replication(p_t, array_tmp, index, id);
 		// after the binary_search_one_replication it is sure that we have suppressed a worker from the array named workers
-		index--;		
-		if (value_res > (1 - p_t->targetLOC)) {
+		index--;	
+		if (value_res != -1) {
+			*nb_replications_max = *nb_replications_max - 1;
+		}
+	
+		if ((value_res > (1 - p_t->targetLOC)) || (*nb_replications_max == 0)) {
 			break;
 		}
 		complexity += 5.0;
 	}
 	complexity = complexity + 3.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 
-	if (value_res > (1 - p_t->targetLOC)) {
+	if ((value_res > (1 - p_t->targetLOC)) || (*nb_replications_max == 0)) {
 		return 1;
 	}
 	else {
@@ -333,10 +370,11 @@ int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id
 }
 
 
-int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id) {
+int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications_max, int id) {
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 	int nb_rand;
 	double complexity = 0.0;
+	msg_task_t task_complexity;
 
 	while (xbt_dynar_length(workers[id]) > 0) {
 		nb_rand = rand() % (xbt_dynar_length(workers[id]));
@@ -349,13 +387,16 @@ int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int i
 			xbt_dynar_push(p_t->additional_workers, tmp);
 			xbt_dynar_push(p_t->additional_reputations, &(tmp->reputation));
 			
-			complexity += 14.0;
+			complexity += 15.0;
 
 			msg_task_t to_send = MSG_task_create(p_t->task_name, p_t->duration, p_t->size, p_t->client);
-			MSG_task_isend(to_send, tmp->mailbox);
+			MSG_task_send(to_send, tmp->mailbox);
+			*nb_replications_max = *nb_replications_max - 1;
 
-			if (valueCond2_replication(p_t) > (1 - p_t->targetLOC)) {
-				MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+			if ((valueCond2_replication(p_t) > (1 - p_t->targetLOC)) || (*nb_replications_max == 0)) {
+				task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+				MSG_task_execute(task_complexity);
+				MSG_task_destroy(task_complexity);
 				return 1;
 			}
 		}
@@ -366,7 +407,9 @@ int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int i
 		}
 	}	
 	complexity += 2.0;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+	task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 
 	return -1;
 }
@@ -374,28 +417,38 @@ int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int i
 
 void replication_others_fit (struct p_task * p_t, int id) {
 	int ret;
-	int nb; 	
+	int nb_replications_max; 	
 	int i;
+	int nb;
 	double complexity = 0.0;
 
 	struct p_worker * tmp = (struct p_worker *) malloc(sizeof(struct p_worker));	
 	xbt_dynar_t array_tmp = xbt_dynar_new(sizeof(struct p_worker), NULL);
 
+	if (p_t->to_replicate == 0) {
+		nb_replications_max = NB_MAX_WORKER_FOR_EACH_REPLICATION;
+	}	
+	else {
+		nb_replications_max = p_t->to_replicate;
+	}
+
+
 	if (group_formation_strategy == FIRST_FIT) {
-		ret = find_workers_first_fit(p_t, &array_tmp, id);
+		ret = find_workers_first_fit(p_t, &array_tmp, &nb_replications_max, id);
 		complexity += 2.0;
 	}
 	else if (group_formation_strategy == TIGHT_FIT) {
-		ret = find_workers_tight_fit(p_t, &array_tmp, id);
+		ret = find_workers_tight_fit(p_t, &array_tmp, &nb_replications_max, id);
 		complexity += 3.0;
 	}
 	else {
-		ret = find_workers_random_fit(p_t, &array_tmp, id);
+		ret = find_workers_random_fit(p_t, &array_tmp, &nb_replications_max, id);
 		complexity += 3.0;
 	}
 	
 	if (ret == -1) {
 		// there aren't workers available left to execute this task, we need to put it in a fifo with some information about the replications that stay
+		p_t->to_replicate = nb_replications_max;
 		printf("we couldn't satisfy the additional replication. We put the task in the additional replication tasks\n");
 		xbt_fifo_push(additional_replication_tasks[id], p_t);
 		complexity++;
@@ -408,5 +461,8 @@ void replication_others_fit (struct p_task * p_t, int id) {
 		xbt_dynar_push(workers[id], tmp);
 	}
 	complexity = 3.0 + 2.0 * nb;
-	MSG_task_execute(MSG_task_create("task_complexity", complexity, 0, NULL));
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity, 0, NULL);
+	MSG_task_execute(task_complexity);
+	MSG_task_destroy(task_complexity);
 }

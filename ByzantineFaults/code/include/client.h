@@ -10,6 +10,7 @@ struct clientDataTask {
 	double start_time;
 };
 
+
 void send_task(int i, char * mailbox, char * myMailbox);
 
 void receive_answer(char * myMailbox);

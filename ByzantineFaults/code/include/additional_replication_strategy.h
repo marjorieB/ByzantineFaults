@@ -1,7 +1,8 @@
 #ifndef REPLICATION_STRATEGY_H
 #define REPLICATION_STRATEGY_H
 
-#define REPLICATION_MAX 16
+#define REPLICATION_MAX 2
+#define NB_MAX_WORKER_FOR_EACH_REPLICATION 5
 
 #include "primary.h"
 #include "msg/msg.h"
@@ -21,13 +22,13 @@ double valueCond2_replication (struct p_task * p_t);
 
 void replication_fixed_fit (struct p_task * p_t, int id);
 
-int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id);
+int find_workers_first_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications_max, int id);
 
 double binary_search_one_replication(struct p_task * p_t, xbt_dynar_t * array_tmp, int index, int id);
 
-int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id);
+int find_workers_tight_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications_max, int id);
 
-int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int id);
+int find_workers_random_fit (struct p_task * p_t, xbt_dynar_t * array_tmp, int * nb_replications_max, int id);
 
 void replication_others_fit (struct p_task * p_t, int id);
 

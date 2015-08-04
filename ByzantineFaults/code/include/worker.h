@@ -28,7 +28,7 @@ struct present_or_failed {
 	unsigned char type;
 };
 
-xbt_dynar_t * presence;
+//xbt_dynar_t * presence;
 
 
 void ask_to_join(char * mailbox, char * myMailbox);
@@ -36,12 +36,14 @@ void ask_to_join(char * mailbox, char * myMailbox);
 void receive_ack(struct worker * worker, char * myMailbox);
 
 //this function returns the time the process has to wait before entering in the system
-double enter_the_system (struct worker * me);
+//double enter_the_system (struct worker * me);
 
 // this function returns 0 if the node is present in the system, otherwise this function returns the time where the node have to recover (ask the primary to enter in the system)
-double present(struct worker * me, double duration_task);
+//double present(struct worker * me, double duration_task);
 
-double treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox);
+//double treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox);
+
+int treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox);
 
 int worker (int argc, char * argv[]);
 

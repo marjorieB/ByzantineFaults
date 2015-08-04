@@ -98,10 +98,13 @@ int task_message_size;
 // this global variable serves to indicate if we have achieved the stationary regime
 int stationary_regime;
 
+// this global variable serves to indicate the number of requests each clients send
+int nb_requests;
 
 
-void print_workers_presence(void);
 
-void fill_workers_presence_array(char * file_database);
+//void print_workers_presence(void);
+
+//void fill_workers_presence_array(char * file_database);
 
 #endif

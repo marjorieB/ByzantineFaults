@@ -11,7 +11,7 @@
 #include <fcntl.h>
 
 
-void print_workers_presence() {
+/*void print_workers_presence() {
 	int i;
 	
 	for (i = 0; i < nb_workers; i++) {
@@ -71,7 +71,7 @@ void fill_workers_presence_array(char * file_database) {
 	} 
 
 	//print_workers_presence();
-}
+}*/
 
 
 int main (int argc, char * argv[]) {
@@ -79,12 +79,15 @@ int main (int argc, char * argv[]) {
 	char dep_file[FILE_NAME_SIZE];
 	char plat_file[FILE_NAME_SIZE];
 	int i;
+	
+	nb_primaries = 1;
 
-	if (argc < 11) {
-		printf("you are using a simulator simulating a probabilistic centralised replication algorithm\n");
-		printf("usage: ./my-boinc file_database number_workers dep_file plat_file compute_duration size centrality SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY\n");
+	if (argc < 13) {
+		printf("ou are using a simulator simulating a probabilistic centralised replication algorithm\n");
+		printf("usage: ./my-boinc file_database number_workers nb_requests dep_file plat_file compute_duration size centrality SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY version\n");
 		printf("file_database corresponds to the traces you want to use to simulate the behavior of your nodes\n");
 		printf("the number_workers corresponds to the number of worker you want in the system\n");
+		printf("nb_request corresponds to the number of request you want each client to send\n");
 		printf("the dep_file and the plat_file correspond respectively to the xml file describing the deployment and the platform\n");
 		printf("compute_duration corresponds to the time in flop each client task takes to be executed\n");
 		printf("size corresponds to the size of each client task has, so it permits to determine the time the task will take to be routed\n");
@@ -102,6 +105,7 @@ int main (int argc, char * argv[]) {
 		printf("you need to precise a replication strategy only if you are using the simulator ARANTES with a FIXED_FIT formation group strategy\n");
 		printf("ADDITIONAL_REPLICATION_STRATEGY can take 3 different values: ITERATIVE_REDUNDANCY, PROGRESSIVE_REDUNDANCY\n");
 		printf("if you use ITERATIVE_REDUNDANCY you need to precise the number of answers you want between the supposed good and the supposed bad answers\n");
+		printf("version corresponds to the number of time the same execution has been executed\n");
 		exit(1);
 	}
 	
@@ -111,8 +115,19 @@ int main (int argc, char * argv[]) {
 		printf("the parameter %d must be the number of workers you want in the systems\n", index);
 		exit(1);
 	}
-	stationary_regime = 3 * nb_workers;
+	stationary_regime = 7 * nb_workers;///////////////////////////////////
+	nb_workers_for_stationary = 0;
 	index++;	
+	if ((nb_clients = atoi(argv[index])) == 0) {
+		printf("the parameter %d must be the number of clients you want in the systems\n", index);
+		exit(1);
+	}
+	index++;
+	if ((nb_requests = atoi(argv[index])) == 0) {
+		printf("the parameter %d must be the number of requests you want each clients send\n", index);
+		exit(1);
+	}
+	index++;
 	strcpy(dep_file, argv[index]);
 	index++;
 	strcpy(plat_file, argv[index]);
@@ -263,7 +278,7 @@ int main (int argc, char * argv[]) {
 		else if (!(strcmp(argv[index], "NOT_RANDOM"))) {
 			random_target_LOC = NOT_RANDOM;
 			index++;
-			if ((value_target_LOC_stationary = atoi(argv[index])) == 0) {
+			if ((value_target_LOC_stationary = atof(argv[index])) == 0) {
 				printf("the parameter %d must be the value of the target LOC you want for the tasks\n", index);
 				exit(1);
 			}
@@ -283,16 +298,17 @@ int main (int argc, char * argv[]) {
 				printf("the parameter %d must be the difference between the supposed good and the supposed bad answers you want to validate an answer\n", index);
 				exit(1);
 			}
+			index++;
 		}
 		else if (!strcmp(argv[index], "PROGRESSIVE_REDUNDANCY")) {
 			additional_replication_strategy = PROGRESSIVE_REDUNDANCY;
 			group_formation_min_number = floor((double)group_formation_fixed_number / 2.0) + 1;
+			index++;
 		}
 		else {
 			printf("the parameter %d must have the value ARANTES_REPLICATION, ITERATIVE_REDUNDANCY or PROGRESSIVE_REDUNDANCY\n", index);
 		}
 	}	
-
 	//nb_primaries = NB_MAX_ACTIVE_PRIMARIES;
 
 	// allocate arrays and fifo for the primaries of the system
@@ -316,12 +332,16 @@ int main (int argc, char * argv[]) {
 		toSend_loadBalancing[i] = (struct loadBalancing *) malloc(sizeof(struct loadBalancing));
 	}
 
-	fill_workers_presence_array(argv[1]);
+	 nb_answers_written_data_csv = 0;
+	
+	//fill_workers_presence_array(argv[1]);
 
 	// running the simulation
 	msg_error_t res = MSG_OK;
 
 	MSG_init(&argc, argv);
+
+	time_start = MSG_get_clock();
 
 	MSG_function_register("client", client);
 	MSG_function_register("primary", primary);

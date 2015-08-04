@@ -16,44 +16,30 @@ void send_task(int i, char * mailbox, char * myMailbox) {
 	sprintf(task_name, "task-%d", i);
 	strcpy(data->mailbox, myMailbox); 
 
-	if (nb_workers_for_stationary < stationary_regime) {
+	if (random_target_LOC == NOT_RANDOM) {
 		if (simulator == ARANTES) {
-			data->target_LOC = 1.0;	
-			data->rangeReputationPrimaryToRequest = 1.0;
+			data->target_LOC = value_target_LOC_stationary;
+			data->rangeReputationPrimaryToRequest = 0.1;
 		}
 		else {
-			data->target_LOC = 0.3;	
-			data->rangeReputationPrimaryToRequest = 0.5;
+			data->target_LOC = value_target_LOC_stationary;
+			data->rangeReputationPrimaryToRequest = 0.90;
 		}
 	}
 	else {
-		printf("stationary regime nb_workers_for_stationary %d\n", nb_workers_for_stationary);
-		if (random_target_LOC == RANDOM) {
-			if (simulator == ARANTES) {
-				data->target_LOC = 0.1;
-				data->rangeReputationPrimaryToRequest = 0.1;
-			}
-			else {
-				data->target_LOC = 0.90;
-				data->rangeReputationPrimaryToRequest = 0.90;
-			}
+		if (simulator == ARANTES) {
+			data->target_LOC = (double)(rand() % 51) / 100.0;
+			data->rangeReputationPrimaryToRequest = 0.1;
 		}
 		else {
-			if (simulator == ARANTES) {
-				data->target_LOC = (double)(rand() % 51) / 100.0;
-				data->rangeReputationPrimaryToRequest = 0.1;
-				printf("value of target_LOC wanted : %f\n", data->target_LOC);
-			}
-			else {
-				data->target_LOC = (50.0 + ((double)(rand() % 51))) / 100.0;
-				data->rangeReputationPrimaryToRequest = 0.1;
-				printf("value of target_LOC wanted : %f\n", data->target_LOC);
-			}
+			data->target_LOC = (50.0 + ((double)(rand() % 51))) / 100.0;
+			data->rangeReputationPrimaryToRequest = 0.1;
 		}
 	}
+
 	data->start_time = MSG_get_clock();
 	task = MSG_task_create (task_name, task_compute_duration, task_message_size, data);
-	MSG_task_isend(task, mailbox);
+	MSG_task_send(task, mailbox);
 }
 
 
@@ -88,15 +74,13 @@ int client (int argc, char * argv[]) {
 	printf("starting client\n");
 	int i;
 	unsigned long int id;
-	int nb_requests;
 	char myMailbox[MAILBOX_SIZE];
 	char primary[MAILBOX_SIZE]; // when we use the decentrlized solution, the client send its request to the first-primary. (However the code is the same, we just change in the xml file the identity of the primary by the identity of the first-primary)
 
 	if (argc != 3) {
+		printf("here in the client\n");
 		exit(1);
 	}
-
-	nb_requests = NB_REQUESTS;
 
 	id = atoi(argv[1]);
 	sprintf(myMailbox, "client-%ld", id);
@@ -106,7 +90,7 @@ int client (int argc, char * argv[]) {
 	srand(time(NULL) * id + MSG_get_clock());
 
 	for (i = 0; i < nb_requests; i++) {
-		//MSG_process_sleep(((double)(rand () % 10001)) / 1000.0);
+		MSG_process_sleep(((double)(rand () % 1000001)) / 1000.0);
 		
 		//send a request to the primary
 		send_task(i, primary, myMailbox);		
