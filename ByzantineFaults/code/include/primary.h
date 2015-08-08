@@ -29,6 +29,8 @@ struct loadBalancing {
 
 struct fusion {
 	xbt_dynar_t workersToSend;
+	xbt_fifo_t tasks;
+	xbt_fifo_t processing_tasks;
 	char max;
 	char min;
 };

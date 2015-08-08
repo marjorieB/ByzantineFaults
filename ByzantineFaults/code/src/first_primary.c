@@ -10,6 +10,16 @@ char able_division = 1;
 char able_fusion = -1;
 
 
+void active_primaries_print() {
+	struct primary p;
+	unsigned int cpt;
+
+	xbt_dynar_foreach (active_primaries, cpt, p) {
+ 		//printf("p.name= %s, p.max_reputation=%d, p.min_reputation=%d\n", p.name, p.max_reputation, p.min_reputation);
+	}
+}
+
+
 void send_finalize_to_primaries () {
 	unsigned int cpt;
 	struct primary p;
@@ -91,13 +101,22 @@ void send_task_reputations(msg_task_t task) {
 
 	data = MSG_task_get_data(task);
 
+	//printf("first-primary: in send_task_reputations\n");
+	//active_primaries_print();
+
+	//printf("data->rangeReputationPrimaryToRequest = %f\n", data->rangeReputationPrimaryToRequest);
+	//printf("((double)p.min_reputation / 100.0)) = %f\n", ((double)p.min_reputation / 100.0));
+	//printf("(double)p.max_reputation / 100.0) = %f\n",(double)p.max_reputation / 100.0);
 	xbt_dynar_foreach(active_primaries, cpt, p) {
 		if ((data->rangeReputationPrimaryToRequest >= ((double)p.min_reputation / 100.0)) && (data->rangeReputationPrimaryToRequest < ((double)p.max_reputation / 100.0))) {
 			complexity += 2.0;
+
+			//printf("in the boucle, found the good primary\n");
 			pSend = xbt_dynar_get_ptr(active_primaries, cpt);
 			break;
 		}
 	}
+	//printf("first-primary: I forward the %s to %s\n", MSG_task_get_name(task), pSend->name);
 
 	MSG_comm_destroy(MSG_task_isend(MSG_task_create(MSG_task_get_name(task), MSG_task_get_compute_duration(task), task_message_size, data), pSend->name));
 
@@ -112,6 +131,11 @@ void treat_change(msg_task_t task) {
 	*workers_array = xbt_dynar_new(sizeof(struct p_worker), NULL);
 	double complexity = 1.0;
 
+
+	//printf("active_primaries in the system\n");
+	//active_primaries_print();
+
+	//printf("in here\n");
 	workers_array = (xbt_dynar_t *)MSG_task_get_data(task);
 	//printf("size of the workers_array %ld\n", xbt_dynar_length(*workers_array));
 
@@ -147,9 +171,13 @@ void treat_change(msg_task_t task) {
 void treat_division(msg_task_t task) {
 	char mailbox[MAILBOX_SIZE];
 	double complexity = 0.0;
+	char * limit_min = (char *) malloc(sizeof(char));
+	char * limit_max = (char *) malloc(sizeof(char));
+
 
 	if (xbt_dynar_length(inactive_primaries) > 0) {
 		struct primary * p = (struct primary *) malloc(sizeof(struct primary));
+		struct primary * p_divise;
 
 		xbt_dynar_pop(inactive_primaries, p);
 
@@ -162,12 +190,18 @@ void treat_division(msg_task_t task) {
 			
 			xbt_dynar_foreach(active_primaries, cpt, primary) {
 				if (!strcmp(primary.name, mailbox)) {
-					primary.max_reputation = r_l->min_reputation;
+					p_divise = xbt_dynar_get_ptr(active_primaries, cpt);
+					p_divise->min_reputation = r_l->max_reputation;
 					break;
 				}
 			}
 			p->min_reputation = r_l->min_reputation;
 			p->max_reputation = r_l->max_reputation;
+			*limit_min = r_l->min_reputation;
+			MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_min", 0, (strlen("limit_min") + 1)*sizeof(char), limit_min), p->name));
+			*limit_max = r_l->max_reputation;
+			MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_max", 0, (strlen("limit_max") + 1)*sizeof(char), limit_max), p->name));	
+			
 			complexity = complexity + 4.0 + cpt + 1.0;
 		}
 		else {
@@ -176,6 +210,9 @@ void treat_division(msg_task_t task) {
 		}
 
 		xbt_dynar_push(active_primaries, p);
+		//printf("after division the primaries in the system are:\n");
+		//active_primaries_print();
+
 		MSG_comm_destroy(MSG_task_isend(MSG_task_create("ack_division", 0, (strlen("ack_division") + strlen(p->name)) * sizeof(char), p->name), mailbox)); 
 	
 		complexity += 8.0;
@@ -229,17 +266,68 @@ void treat_fusion(msg_task_t task) {
 
 	if (xbt_dynar_length(active_primaries) > 1) {
 		// we necessarily want at least a primary in the system
+		unsigned int nb;
+		struct primary primary;
 		unsigned int cpt;
 		struct primary p;
-		struct primary * primary = (struct primary *) malloc(sizeof(struct primary)); 
+		struct primary * primary_active_to_inactive = (struct primary *) malloc(sizeof(struct primary)); 
+		char min_min = 120;
+		char min_max = 120;
+		struct primary * p_min_min = NULL;
+		struct primary * p_min_max = NULL;
+		char * limit = (char *) malloc(sizeof(char));
 
-		xbt_dynar_foreach(active_primaries, cpt, p) {
+		xbt_dynar_foreach(active_primaries, nb, p) {
 			if (!strcmp(p.name, (char *)MSG_task_get_data(task))) {
 				break;
 			}
 		}
-		xbt_dynar_remove_at(active_primaries, cpt, primary);
-		xbt_dynar_push(inactive_primaries, primary);
+		xbt_dynar_remove_at(active_primaries, nb, primary_active_to_inactive);
+		xbt_dynar_push(inactive_primaries, primary_active_to_inactive);
+
+		xbt_dynar_foreach(active_primaries, cpt, primary) {
+			if ((primary.max_reputation <= primary_active_to_inactive->min_reputation) && ((primary_active_to_inactive->min_reputation - primary.max_reputation) < min_min)) {
+				//printf("the %s have its max reputation near the min reputation of the fused primary\n", primary.name);
+				min_min = primary_active_to_inactive->min_reputation - primary.max_reputation;
+				p_min_min = xbt_dynar_get_ptr(active_primaries, cpt);
+				complexity += 8.0;
+			}
+			if ((primary.min_reputation >= primary_active_to_inactive->max_reputation) && ((primary.min_reputation - primary_active_to_inactive->max_reputation) < min_max)) {
+				//printf("the %s have its min reputation near the max reputation of the fused primary\n", primary.name);
+				min_max = primary.min_reputation - primary_active_to_inactive->max_reputation;
+				p_min_max = xbt_dynar_get_ptr(active_primaries, cpt);
+				complexity += 11.0;
+			}
+		}
+
+		if (p_min_min != NULL) {
+			complexity++;
+			if (p_min_max == NULL) {
+				*limit = primary_active_to_inactive->max_reputation;
+				p_min_min->max_reputation = primary_active_to_inactive->max_reputation;
+				//printf("we change the limit max of p_min_min to %d\n", *limit);
+				complexity += 3.0;
+			}
+			else {
+				//printf("we change the limit max of p_min_min to %d\n", *limit);
+				p_min_min->max_reputation = (primary_active_to_inactive->max_reputation - primary_active_to_inactive->min_reputation) / 2 + primary_active_to_inactive->min_reputation;
+				complexity += 5.0;
+			}
+			MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_max", 0, (strlen("limit_max") + 1)*sizeof(char), limit), p_min_min->name));
+		}
+		if (p_min_max != NULL) {
+			complexity++;
+			if (p_min_min == NULL) {
+				*limit = primary_active_to_inactive->min_reputation;
+				p_min_max->min_reputation = primary_active_to_inactive->min_reputation;
+				complexity += 3.0;
+			}
+			else {
+				p_min_max->min_reputation = (primary_active_to_inactive->max_reputation - primary_active_to_inactive->min_reputation) / 2 + primary_active_to_inactive->min_reputation;
+				complexity += 5.0;
+			}					
+			MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_min", 0, (strlen("limit_min") + 1)*sizeof(char), limit), p_min_max->name));
+		}
 
 		MSG_comm_destroy(MSG_task_isend(MSG_task_create("ack_fusion", 0, strlen("ack_fusion") * sizeof(char), NULL), (char *)MSG_task_get_data(task)));
 
@@ -273,7 +361,13 @@ void treat_workers_to_fuse(msg_task_t task) {
 	int i;
 	struct fusion * recv = (struct fusion *) MSG_task_get_data(task);
 	int until = xbt_dynar_length(recv->workersToSend);
+	int until_tasks = xbt_fifo_size(recv->tasks);
 	double complexity = 2.0;
+	//char * min = (char *) malloc(sizeof(char));
+	//char * max = (char *) malloc(sizeof(char));
+
+
+	//active_primaries_print();
 
 	for (i = 0; i < until; i++) {
 		struct p_worker * p_w = (struct p_worker *) malloc(sizeof(struct p_worker));
@@ -291,57 +385,110 @@ void treat_workers_to_fuse(msg_task_t task) {
 		else {
 			unsigned int cpt;
 			struct primary primary;
-			char found = -1;
-			char min_min = 200;
-			char min_max = 200;
-			struct primary * p_min_min;
-			struct primary * p_min_max;
-			char limit[1];
-			limit[1] = (recv->max - recv->min) / 2 + recv->min;
+			/*char found = -1;
+			char min_min = 120;
+			char min_max = 120;
+			struct primary * p_min_min = NULL;
+			struct primary * p_min_max = NULL;
+			char * limit = (char *) malloc(sizeof(char));
+			*limit = (recv->max - recv->min) / 2 + recv->min;*/
 
 			complexity += 3.0;
 			xbt_dynar_foreach(active_primaries, cpt, primary) {
+				//printf("recv->min = %d, and recv->max=%d\n", recv->min, recv->max);
+				//printf("primary.reputation_min=%d, and primary.reputation_max=%d\n", primary.min_reputation, primary.max_reputation);
+
 				if ((p_w->reputation >= primary.min_reputation) && (p_w->reputation < primary.max_reputation)) {
-					found = 1;
+					//found = 1;
+					//printf("I found a primary to take the worker in charge\n");
 					p = xbt_dynar_get_ptr(active_primaries, cpt);
 					complexity += 4.0;
 					break;
 				}
-				if ((primary.max_reputation <= recv->min) && ((recv->min - primary.max_reputation) < min_min)) {
+				/*if ((primary.max_reputation <= recv->min) && ((recv->min - primary.max_reputation) < min_min)) {
+					//printf("the %s have its max reputation near the min reputation of the fused primary\n", primary.name);
 					min_min = recv->min - primary.max_reputation;
 					p_min_min = xbt_dynar_get_ptr(active_primaries, cpt);
 					complexity += 8.0;
 				}
 				if ((primary.min_reputation >= recv->max) && ((primary.min_reputation - recv->max) < min_max)) {
+					//printf("the %s have its min reputation near the max reputation of the fused primary\n", primary.name);
 					min_max = primary.min_reputation - recv->max;
 					p_min_max = xbt_dynar_get_ptr(active_primaries, cpt);
 					complexity += 11.0;
-				}
+				}*/
 			}
-			complexity++;
+			/*complexity++;
 			if (found != 1) {
-				p_min_min->max_reputation = limit[1];
-				p_min_max->min_reputation = limit[1];
-				MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_max", 0, (strlen("limit_max") + 1)*sizeof(char), limit), p_min_min->name));
-				MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_min", 0, (strlen("limit_min") + 1)*sizeof(char), limit), p_min_max->name));
-			
+				//printf("we didn't found an appropriate primary\n");
+				if (p_min_min != NULL) {
+					if (p_min_max == NULL) {
+						*limit = recv->max;
+						*max = recv->max;
+						p_min_min->max_reputation = *max;
+						//printf("we change the limit max of p_min_min to %d\n", *limit);
+					}
+					else {
+						*min = (recv->max - recv->min) / 2 + recv->min;
+						//printf("we change the limit max of p_min_min to %d\n", *limit);
+						p_min_min->max_reputation = *min;
+					}
+					MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_max", 0, (strlen("limit_max") + 1)*sizeof(char), limit), p_min_min->name));
+				}
+				if (p_min_max != NULL) {
+					if (p_min_min == NULL) {
+						*limit = recv->min;
+						*min = recv->min;
+						p_min_max->min_reputation = *min;
+					}
+					else {
+						*min = (recv->max - recv->min) / 2 + recv->min;
+						p_min_max->min_reputation = *min;
+					}					
+					MSG_comm_destroy(MSG_task_isend(MSG_task_create("limit_min", 0, (strlen("limit_min") + 1)*sizeof(char), limit), p_min_max->name));
+				}
+				//printf("AFFFFFFFFFFFFFFFFFFTER THE CHANGE\n");
+				//active_primaries_print();
+
 				unsigned int nb;
 				struct primary prim;
 
 				xbt_dynar_foreach(active_primaries, nb, prim) {
 					if ((p_w->reputation >= prim.min_reputation) && (p_w->reputation < prim.max_reputation)) {
-						p = xbt_dynar_get_ptr(active_primaries, cpt);
+						//printf("now we found a good primary to the worker with reputation %d\n", p_w->reputation);
+						p = xbt_dynar_get_ptr(active_primaries, nb);
 						break;
 					}
 				}
 				complexity = complexity + 1.0 + nb * 2.0;
-			}
+			}*/
 		}
 
+		//printf("send the change of worker to %s handling reputations between %d and %d\n", p->name, p->min_reputation, p->max_reputation);
 		MSG_comm_destroy(MSG_task_isend(MSG_task_create("change", MSG_task_get_compute_duration(task), MSG_task_get_data_size(task), p_w), p->name));
 	}	
+	//printf("BEFOOOOOOOOOOOOOOOOOOOOORE THE TASKS\n");
+	//active_primaries_print();
 
-	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 2.0, 0, NULL);
+
+	for (i = 0; i < until_tasks; i++) {
+		msg_task_t * tmp = xbt_fifo_pop(recv->tasks);
+		//printf("the name of the task to transmit is (see next line): \n");
+		//printf("MSG_task_name(*tmp)=%s\n", (char *)MSG_task_get_name(*tmp));
+		msg_task_t task = MSG_task_create(MSG_task_get_name(*tmp), MSG_task_get_compute_duration(*tmp), MSG_task_get_data_size(*tmp), MSG_task_get_data(*tmp));
+
+		if (distributed_strategies == RANDOM) {
+			//printf("first-primary-0: transmit a task\n");
+			send_task_random(task);	
+		}
+		else {
+			//printf("first-primary-0: transmit a task\n");
+			send_task_reputations(task);
+			//printf("after the transmition\n");
+		}
+	}
+
+	msg_task_t task_complexity = MSG_task_create("task_complexity", complexity + 2.0 + until_tasks, 0, NULL);
 	MSG_task_execute(task_complexity);
 	MSG_task_destroy(task_complexity);
 }

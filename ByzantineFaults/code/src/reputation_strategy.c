@@ -73,6 +73,7 @@ void updateReputation_BOINC (struct p_worker * worker) {
 	}
 	else {
 		worker->reputation = (int) ((1.0 - (double) ((((double)worker->totR - (double)worker->totC) / (double)(worker->totR)))) * 100);
+		//printf("dans update_reputation_BOINC: value of %s %d\n", worker->mailbox, worker->reputation); 
 		complexity = 6.0;
 	}
 

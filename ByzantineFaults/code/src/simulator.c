@@ -82,10 +82,10 @@ int main (int argc, char * argv[]) {
 	
 	nb_primaries = 1;
 
-	if (argc < 13) {
+	if (argc < 12) {
 		printf("ou are using a simulator simulating a probabilistic centralised replication algorithm\n");
-		printf("usage: ./my-boinc file_database number_workers nb_requests dep_file plat_file compute_duration size centrality SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY version\n");
-		printf("file_database corresponds to the traces you want to use to simulate the behavior of your nodes\n");
+		printf("usage: ./my-boinc number_workers nb_requests dep_file plat_file compute_duration size centrality SIMULATOR REPUTATION_STRATEGY FORMATION_GROUP_STRATEGY ADDITIONAL_REPLICATION_STRATEGY version\n");
+		//printf("file_database corresponds to the traces you want to use to simulate the behavior of your nodes\n");
 		printf("the number_workers corresponds to the number of worker you want in the system\n");
 		printf("nb_request corresponds to the number of request you want each client to send\n");
 		printf("the dep_file and the plat_file correspond respectively to the xml file describing the deployment and the platform\n");
@@ -109,8 +109,8 @@ int main (int argc, char * argv[]) {
 		exit(1);
 	}
 	
-
-	index++;
+	// for the database
+	//index++;
 	if ((nb_workers = atoi(argv[index])) == 0) {
 		printf("the parameter %d must be the number of workers you want in the systems\n", index);
 		exit(1);

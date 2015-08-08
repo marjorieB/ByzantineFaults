@@ -11,7 +11,7 @@ void send_task(int i, char * mailbox, char * myMailbox) {
 	char task_name[TASK_NAME_SIZE];
 	struct clientDataTask * data = (struct clientDataTask *) malloc(sizeof(struct clientDataTask));
 
-	printf("%s: I send a request to %s\n", myMailbox, mailbox);
+	//printf("%s: I send a request to %s\n", myMailbox, mailbox);
 
 	sprintf(task_name, "task-%d", i);
 	strcpy(data->mailbox, myMailbox); 
@@ -51,13 +51,13 @@ void receive_answer(char * myMailbox) {
 	xbt_assert(res == MSG_OK, "MSG_task_receive failed on client");
 
 	if (!strcmp(MSG_task_get_name(answer), "answer")) {
-   	printf("%s: I receive the answer to %s\n", myMailbox, (char *)MSG_task_get_data(answer));
+   	//printf("%s: I receive the answer to %s\n", myMailbox, (char *)MSG_task_get_data(answer));
 	}
 	else if (!strcmp(MSG_task_get_name(answer), "fail")) {
-		printf("%s: the primary failed having a majority of answer from the workers\n", myMailbox);
+		//printf("%s: the primary failed having a majority of answer from the workers\n", myMailbox);
 	}
 	else {
-		printf("%s, message incorrect\n", myMailbox);
+		//printf("%s, message incorrect\n", myMailbox);
 	}
 
 	MSG_task_destroy(answer);	
@@ -71,14 +71,14 @@ void send_finalize(char * mailbox) {
 
 
 int client (int argc, char * argv[]) {
-	printf("starting client\n");
+	//printf("starting client\n");
 	int i;
 	unsigned long int id;
 	char myMailbox[MAILBOX_SIZE];
 	char primary[MAILBOX_SIZE]; // when we use the decentrlized solution, the client send its request to the first-primary. (However the code is the same, we just change in the xml file the identity of the primary by the identity of the first-primary)
 
 	if (argc != 3) {
-		printf("here in the client\n");
+		//printf("here in the client\n");
 		exit(1);
 	}
 
@@ -100,7 +100,7 @@ int client (int argc, char * argv[]) {
 	}
 	
 	// signal to the primary that there is no more tasks to treat for that client
-	printf("%s: I send finalize\n", myMailbox);
+	//printf("%s: I send finalize\n", myMailbox);
 	send_finalize(primary);
 
 	return 0;

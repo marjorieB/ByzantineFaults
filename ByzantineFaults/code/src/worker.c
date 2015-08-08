@@ -19,7 +19,7 @@ void receive_ack(struct worker * worker, char * myMailbox) {
 	xbt_assert(res == MSG_OK, "MSG_task_receive failed on worker");
 
 	strcpy(worker->primary, (char *)MSG_task_get_data(ack));
-	printf("%s: receive a ack from %s\n", myMailbox, worker->primary);
+	//printf("%s: receive a ack from %s\n", myMailbox, worker->primary);
 
 	MSG_task_destroy(ack);
 }
@@ -34,8 +34,8 @@ int treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) {
 	strcpy(data_toSend->task_name, MSG_task_get_name(task));
 
 	if ((rand() % 100) < 2) {
-		printf("%s: I crashed\n", myMailbox);
-		data_toSend->answer = rand() % BAD_ANSWER;
+		//printf("%s: I crashed\n", myMailbox);
+		data_toSend->answer = BAD_ANSWER + 1;
 		answer = MSG_task_create("crash", 0, strlen("crash") * sizeof(char) + sizeof(data_toSend), data_toSend);
 		MSG_task_send(answer, me->primary);
 		return 1;
@@ -78,7 +78,7 @@ int treat_task_worker(struct worker * me, msg_task_t task, char * myMailbox) {
 
 
 int worker (int argc, char * argv[]) {
-	printf("worker start\n");
+	//printf("worker start\n");
 	char myMailbox[MAILBOX_SIZE];
 	struct worker * me = (struct worker *) malloc(sizeof(struct worker));
 	char primary[MAILBOX_SIZE];
@@ -86,10 +86,10 @@ int worker (int argc, char * argv[]) {
 	int ret;
 
 	if (argc != 4) {
-		printf("here in the workers\n");
+		//printf("here in the workers\n");
 		exit(1);
 	}
-//	printf("worker : before reading\n");
+//	//printf("worker : before reading\n");
 
 	// the worker ask to join the system, then wait for an acknowledgement from the primary and then wait for request to treat
 	me->id = atoi(argv[1]);	
@@ -105,7 +105,7 @@ int worker (int argc, char * argv[]) {
 	MSG_process_sleep(((double)(rand () % 100001)) / 1000.0);
 
 
-	printf("%s: ask to join the system to %s\n", myMailbox, primary);
+	//printf("%s: ask to join the system to %s\n", myMailbox, primary);
 	ask_to_join(primary, myMailbox);
 	receive_ack(me, myMailbox);
 
@@ -117,25 +117,25 @@ int worker (int argc, char * argv[]) {
 		xbt_assert(res == MSG_OK, "MSG_task_receive failed on worker");
 
 		if (!strcmp(MSG_task_get_name(task), "ack")) {
-			printf("%s: I receive an ack\n", myMailbox);
+			//printf("%s: I receive an ack\n", myMailbox);
 			strcpy(me->primary, (char *)MSG_task_get_data(task));
 			MSG_task_destroy(task);
 			task = NULL;
 		}
 		else if (!strcmp(MSG_task_get_name(task), "finalize")) {
-			printf("%s: I receive finalize %f\n", myMailbox, MSG_get_clock());
+			//printf("%s: I receive finalize %f\n", myMailbox, MSG_get_clock());
 			MSG_task_destroy(task);
 			task = NULL;
 			break;
 		}
 		else if (!strncmp(MSG_task_get_name(task), "task", strlen("task") * sizeof(char))) {
 			// if the availability_file still don't work, do a random to know if the worker will answer and put a percentage of availability in the xml file to describe the node
-			printf("reception of a task %s\n", myMailbox);
+			//printf("reception of a task %s\n", myMailbox);
 			ret = treat_task_worker(me, task, myMailbox);
 			MSG_task_destroy(task);
 			task = NULL;
 			if (ret == 1) {
-				MSG_process_sleep(((double)(rand () % 10001)) / 1000.0);
+				MSG_process_sleep(((double)(rand () % 1000001)) / 1000.0);
 				if (centrality == DISTRIBUTED) {
 					// we have to contact the first-primary to join again the system
 					strcpy(primary, argv[3]);
@@ -151,13 +151,13 @@ int worker (int argc, char * argv[]) {
 		}
 	/*	else if (!strncmp(MSG_task_get_name(task), "ackchange", strlen("ackchange") * sizeof(char))) {
 			strcpy(me->primary, (char *)MSG_task_get_data(task));
-			printf("%s: I receive a ackchange from %s\n", myMailbox, me->primary);
+			//printf("%s: I receive a ackchange from %s\n", myMailbox, me->primary);
 			MSG_task_destroy(task);
 			task = NULL;
 		} */
 		else {
 			// message incorrect
-			printf("%s message incorrect\n", myMailbox);
+			//printf("%s message incorrect\n", myMailbox);
 			MSG_task_destroy(task);
 			task = NULL;
 		}

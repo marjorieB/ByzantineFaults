@@ -17,6 +17,8 @@ xbt_dynar_t active_primaries;
 xbt_dynar_t inactive_primaries;
 
 
+void active_primaries_print(void);
+
 void send_finalize_to_primaries (void);
 
 void send_task_random(msg_task_t task);
